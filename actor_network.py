@@ -70,12 +70,12 @@ class ActorNetwork:
 
         
         steer = tf.tanh(tf.matmul(layer2,W_steer) + b_steer)
-        accel = tf.sigmoid(tf.matmul(layer2,W_accel) + b_accel)
-        brake = tf.sigmoid(tf.matmul(layer2,W_brake) + b_brake)
+        # accel = tf.sigmoid(tf.matmul(layer2,W_accel) + b_accel)
+        # brake = tf.sigmoid(tf.matmul(layer2,W_brake) + b_brake)
         
-        action_output = tf.concat([steer, accel, brake], 1)
-
-        return state_input,action_output,[W1,b1,W2,b2,W_steer,b_steer,W_accel,b_accel,W_brake,b_brake]
+        # action_output = tf.concat([steer, accel, brake], 1)
+        action_output = steer
+        return state_input,action_output,[W1,b1,W2,b2,W_steer,b_steer] #,W_accel,b_accel,W_brake,b_brake]
 
     def create_target_network(self,state_dim,action_dim,net):
         state_input = tf.placeholder("float",[None,state_dim])
@@ -87,14 +87,12 @@ class ActorNetwork:
         layer2 = tf.nn.relu(tf.matmul(layer1,target_net[2]) + target_net[3])
 
         steer = tf.tanh(tf.matmul(layer2,target_net[4]) + target_net[5])
-        accel = tf.sigmoid(tf.matmul(layer2,target_net[6]) + target_net[7])
-        brake = tf.sigmoid(tf.matmul(layer2,target_net[8]) + target_net[9])
+        # accel = tf.sigmoid(tf.matmul(layer2,target_net[6]) + target_net[7])
+        # brake = tf.sigmoid(tf.matmul(layer2,target_net[8]) + target_net[9])
+        # action_output = tf.concat([steer, accel, brake], 1)
 
-        action_output = tf.concat([steer, accel, brake], 1)
+        action_output = steer
         return state_input,action_output,target_update,target_net
-
-
-
 
     def update_target(self):
         self.sess.run(self.target_update)

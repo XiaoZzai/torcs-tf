@@ -23,7 +23,7 @@ print( epsilon_start )
 
 def playGame(train_indicator=is_training):    #1 means Train, 0 means simply Run
 
-    action_dim = 3  #Steering/Acceleration/Brake
+    action_dim = 1  #Steering/Acceleration/Brake
     state_dim = 29  #of sensors input
     env_name = 'Torcs_Env'
     agent = DDPG(env_name, state_dim, action_dim)
@@ -59,13 +59,13 @@ def playGame(train_indicator=is_training):    #1 means Train, 0 means simply Run
         # During early training phases - out of track and slow driving is allowed as humans do ( Margin of error )
         # As one learns to drive the constraints become stricter
         
-        random_number = random.random()
-        eps_early = max(epsilon,0.10)
-        if (random_number < (1.0-eps_early)) and (train_indicator == 1):
-            early_stop = 1
-        else: 
-            early_stop = 0
-        print(("Episode : " + str(i) + " Replay Buffer " + str(agent.replay_buffer.count()) + ' Early Stopping: ' + str(early_stop) +  ' Epsilon: ' + str(eps_early) +  ' RN: ' + str(random_number)  ))
+        # random_number = random.random()
+        # eps_early = max(epsilon,0.10)
+        # if (random_number < (1.0-eps_early)) and (train_indicator == 1):
+        #     early_stop = 1
+        # else:
+        #     early_stop = 0
+        print(("Episode : " + str(i) + " Replay Buffer " + str(agent.replay_buffer.count())))
 
         #Initializing the first state
         s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY,  ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm))
@@ -85,7 +85,8 @@ def playGame(train_indicator=is_training):    #1 means Train, 0 means simply Run
                 a_t = agent.action(s_t)
                 
             #ob, r_t, done, info = env.step(a_t[0],early_stop)
-            ob, r_t, done, info = env.step(a_t)
+
+            ob, r_t, done, info = env.step([a_t[0], 0.6, 0])
             s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm))
             
             #Add to replay buffer only if training (Is it necessay - don't think so)

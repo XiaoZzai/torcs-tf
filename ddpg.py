@@ -143,13 +143,13 @@ class DDPG:
         #print "Action_No_Noise:", action
         noise_t = np.zeros(self.action_dim)
         noise_t[0] = epsilon * self.OU.function(action[0],  0.0 , 0.60, 0.80)
-        noise_t[1] = epsilon * self.OU.function(action[1],  0.5 , 1.00, 0.10)
-        noise_t[2] = epsilon * self.OU.function(action[2], -0.1 , 1.00, 0.05)
+        # noise_t[1] = epsilon * self.OU.function(action[1],  0.5 , 1.00, 0.10)
+        # noise_t[2] = epsilon * self.OU.function(action[2], -0.1 , 1.00, 0.05)
         
         action = action+noise_t
         action[0] = np.clip( action[0], -1 , 1 )
-        action[1] = np.clip( action[1], 0 , 1 )
-        action[2] = np.clip( action[2], 0 , 1 )
+        # action[1] = np.clip( action[1], 0 , 1 )
+        # action[2] = np.clip( action[2], 0 , 1 )
         
         #print "Action_Noise:", action
         return action
