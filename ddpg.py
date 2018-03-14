@@ -131,8 +131,8 @@ class DDPG:
         action = self.actor_network.action(state)
 
         action[0] = np.clip( action[0], -1 , 1 )
-        action[1] = np.clip( action[1], 0 , 1 )
-        action[2] = np.clip( action[2], 0 , 1 )
+        # action[1] = np.clip( action[1], 0 , 1 )
+        # action[2] = np.clip( action[2], 0 , 1 )
         #print "Action:", action
         return action
 
