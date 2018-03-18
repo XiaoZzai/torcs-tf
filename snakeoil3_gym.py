@@ -119,10 +119,15 @@ def bargraph(x,mn,mx,w,c='X'):
     return '[%s]' % (nnc+npc+ppc+pnc)
 
 class Client(object):
-    def __init__(self,H=None,p=None,i=None,e=None,t=None,s=None,d=None,vision=False, random_track=False):
+    def __init__(self, H=None, p=None, i=None, e=None, t=None, s=None, d=None,
+                 vision=False, text_mode=False, track_no=0, random_track=False, track_range=(0, 5)):
+
         # If you don't like the option defaults,  change them here.
         self.vision = vision
         self.random_track = random_track
+        self.track_no = track_no
+        self.track_range = track_range
+        self.text_mode = text_mode
 
         self.host= 'localhost'
         self.port= 3001
@@ -140,9 +145,16 @@ class Client(object):
         if t: self.trackname= t
         if s: self.stage= s
         if d: self.debug= d
-        self.S= ServerState()
-        self.R= DriverAction()
+        self.S = ServerState()
+        self.R = DriverAction()
         self.setup_connection()
+
+    def _select_track(self):
+        track_no = self.track_no
+        if self.random_track == True:
+            track_no = np.random.randint(low=self.track_range[0], high=self.track_range[1])
+        command = "sh autostart%d.sh" % track_no
+        os.system(command)
 
     def setup_connection(self):
         # == Set Up UDP Socket ==
@@ -179,17 +191,13 @@ class Client(object):
                     os.system('pkill torcs')
                     time.sleep(1.0)
                     if self.vision is False:
-                        os.system('torcs -nofuel -nodamage -nolaptime &')
+                        os.system('torcs %s -nofuel -nolaptime &' % ("-T" if self.text_mode else ""))
                     else:
                         os.system('torcs -nofuel -nodamage -nolaptime -vision &')
 
                     time.sleep(1.0)
-                    if self.random_track == True:
-                        track_num = np.random.randint(low=0, high=5)
-                        command = "sh autostart%d.sh" % track_num
-                        os.system(command)
-                    else:
-                        os.system('sh autostart0.sh')
+                    self._select_track()
+
                     n_fail = 5
                 n_fail -= 1
 

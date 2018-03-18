@@ -8,13 +8,17 @@ import time
 
 
 class TorcsEnv:
-    terminal_judge_start = 100  # If after 100 timestep still no progress, terminated
+    terminal_judge_start = 30  # If after 100 timestep still no progress, terminated
     termination_limit_progress = 5  # [km/h], episode terminates if car is running slower than this limit
     default_speed = 300
 
     initial_reset = True
 
-    def __init__(self, vision=False, throttle=False, gear_change=False, random_track=False):
+    # "track_no" makes sense only if "random_track" is False
+    # "track_range" makes sense only if "random_track" is True
+    # "text_mode" makes sense only if "vision" is False
+    # "random_track" makes sense only if "text_mode" is True
+    def __init__(self, vision=False, throttle=False, gear_change=False, text_mode=False, track_no=0, random_track=False, track_range=(0, 5)):
         self.vision = vision
         self.throttle = throttle
         self.gear_change = gear_change
@@ -23,7 +27,10 @@ class TorcsEnv:
 
         self.last_steer = 0.0
 
+        self.text_mode = text_mode
         self.random_track = random_track
+        self.track_no = track_no
+        self.track_range = track_range
 
         ##print("launch torcs")
         os.system('pkill torcs')
@@ -31,15 +38,10 @@ class TorcsEnv:
         if self.vision is True:
             os.system('torcs -nofuel -nodamage -nolaptime -vision &')
         else:
-            os.system('torcs -nofuel -nolaptime &')
+            os.system('torcs %s -nofuel -nolaptime &' % ("-T" if self.text_mode else ""))
         time.sleep(0.5)
 
-        if self.random_track == True:
-            track_num = np.random.randint(low=0, high=5)
-            command = "sh autostart%d.sh" % track_num
-            os.system(command)
-        else:
-            os.system('sh autostart0.sh')
+        self._select_track()
         time.sleep(0.5)
 
         """
@@ -141,36 +143,52 @@ class TorcsEnv:
         damage = np.array(obs['damage'])
         rpm = np.array(obs['rpm'])
 
-        progress = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) - sp * np.abs(obs['trackPos']) # \
-                    # - np.abs(sp*(action_torcs['steer']-self.last_steer)) / 4
+        # please compute upper bound and lower bound
+        progress = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) - sp * np.abs(obs['trackPos']) \
+                    - np.abs(sp*(action_torcs['steer']-self.last_steer)) / 4
         reward = progress
 
         self.last_steer = action_torcs['steer']
 
         # collision detection
-        if obs['damage'] - obs_pre['damage'] > 0:
-            reward = -1
+        # if obs['damage'] - obs_pre['damage'] > 0:
+        #     reward = -1
 
         # Termination judgement #########################
+
+
+
+
         episode_terminate = False
+        # if sp > 100: # if speed is too large
+        #     print("Over speed")
+        #     reward = -200
+        #     episode_terminate = True
+        #     client.R.d['meta'] = True
+
         if (abs(track.any()) > 1 or abs(trackPos) > 1):  # Episode is terminated if the car is out of track
-           reward = -200
-           episode_terminate = True
-           client.R.d['meta'] = True
+            print("Out of track")
+            reward = -200
+            episode_terminate = True
+            client.R.d['meta'] = True
 
         if self.terminal_judge_start < self.time_step: # Episode terminates if the progress of agent is small
-           if progress < self.termination_limit_progress:
+           if sp < 5 : # progress < self.termination_limit_progress:
                print("No progress")
+               reward = -200
                episode_terminate = True
                client.R.d['meta'] = True
 
         if np.cos(obs['angle']) < 0: # Episode is terminated if the agent runs backward
+            print("Reversing")
             episode_terminate = True
+            reward = -200
             client.R.d['meta'] = True
 
 
         if client.R.d['meta'] is True: # Send a reset signal
             self.initial_run = False
+            reward = -200
             client.respond_to_server()
 
         self.time_step += 1
@@ -192,7 +210,7 @@ class TorcsEnv:
                 print("### TORCS is RELAUNCHED ###")
 
         # Modify here if you use multiple tracks in the environment
-        self.client = snakeoil3.Client(p=3101, vision=self.vision, random_track=self.random_track)  # Open new UDP in vtorcs
+        self.client = snakeoil3.Client(p=3101, vision=self.vision, text_mode=self.text_mode, random_track=self.random_track)  # Open new UDP in vtorcs
         self.client.MAX_STEPS = np.inf
 
         client = self.client
@@ -222,16 +240,10 @@ class TorcsEnv:
         if self.vision is True:
             os.system('torcs -nofuel -nodamage -nolaptime -vision &')
         else:
-            os.system('torcs -nofuel -nolaptime &')
+            os.system('torcs %s -nofuel -nolaptime &' % ("-T" if self.text_mode else ""))
         time.sleep(0.5)
 
-        if self.random_track == True:
-            track_num = np.random.randint(low=0, high=5)
-            command = "sh autostart%d.sh" % track_num
-            os.system(command)
-        else:
-            os.system('sh autostart0.sh')
-
+        self._select_track()
         time.sleep(0.5)
 
     def agent_to_torcs(self, u):
@@ -270,7 +282,7 @@ class TorcsEnv:
                      'speedX', 'speedY', 'speedZ', 'angle', 'damage',
                      'opponents',
                      'rpm',
-                     'track', 
+                     'track',
                      'trackPos',
                      'wheelSpinVel']
             Observation = col.namedtuple('Observaion', names)
@@ -310,3 +322,14 @@ class TorcsEnv:
                                trackPos=np.array(raw_obs['trackPos'], dtype=np.float32)/1.,
                                wheelSpinVel=np.array(raw_obs['wheelSpinVel'], dtype=np.float32),
                                img=image_rgb)
+
+    def _select_track(self):
+        if self.text_mode == False:
+            track_no = self.track_no
+            if self.random_track == True:
+                track_no = np.random.randint(low=self.track_range[0], high=self.track_range[1])
+
+            command = "sh autostart%d.sh" % track_no
+            os.system(command)
+
+
