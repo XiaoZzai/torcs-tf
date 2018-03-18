@@ -182,7 +182,6 @@ class TorcsEnv:
             reward = -200
             client.R.d['meta'] = True
 
-
         if client.R.d['meta'] is True: # Send a reset signal
             self.initial_run = False
             reward = -200

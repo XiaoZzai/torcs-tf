@@ -16,13 +16,14 @@ print( epsilon_start )
 
 def main(train_indicator=is_training):  # 1 means Train, 0 means simply Run
 
-    experiment_name = "reward-tf2"
+    experiment_name = "reward-tf3"
     experiment_dir  = "experiment-%s/" % experiment_name
 
     if os.path.exists(experiment_dir) == False:
         os.mkdir(experiment_dir)
 
-    description = """rewriting ddpg using tf"""
+    description = """reward = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) - sp * np.abs(obs['trackPos']) / 8 """ \
+                    """- sp * np.abs(action_torcs['steer']) * 4"""
 
     with open(experiment_dir + "README.md", 'w') as file:
         file.write(description)
@@ -37,7 +38,7 @@ def main(train_indicator=is_training):  # 1 means Train, 0 means simply Run
     agent.load_network()
 
     vision = False
-    env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=0, random_track=False, track_range=(0, 5))
+    env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=0, random_track=True, track_range=(0, 4))
     
     EXPLORE   = total_explore
     MAX_STEPS = max_steps
@@ -123,7 +124,7 @@ def main(train_indicator=is_training):  # 1 means Train, 0 means simply Run
                 if done:
                     break
 
-                if np.mod(step + 1, 5000) == 0:
+                if np.mod(step + 1, 50000) == 0:
                     if train_indicator == 1:
                         print("Now we save model with step = ", step)
                         agent.save_network(step + 1)
