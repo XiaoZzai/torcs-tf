@@ -1,31 +1,21 @@
-
-# coding: utf-8
-
-# In[ ]:
-
-import tensorflow as tf 
-from tensorflow.contrib.layers.python.layers import batch_norm as batch_norm
-#from bn import batch_norm as batch_norm
-
-import numpy as np
+import tensorflow as tf
 import math
 
 
 # Hyper Parameters
 LAYER1_SIZE = 300
-LAYER2_SIZE = 400
+LAYER2_SIZE = 600
 LEARNING_RATE = 1e-4
 TAU = 0.001
 BATCH_SIZE = 32
 
 class ActorNetwork:
-    """docstring for ActorNetwork"""
-    def __init__(self,sess,state_dim,action_dim):
+    def __init__(self, sess, state_dim, action_dim):
 
         self.sess = sess
         self.state_dim = state_dim
         self.action_dim = action_dim
-        # create actor network
+
         self.state_input,self.action_output,self.net,self.is_training = self.create_network(state_dim,action_dim)
 
         # create target actor network
@@ -148,7 +138,6 @@ class ActorNetwork:
         updates_collections=None,is_training=True, reuse=None,scope=scope_bn,decay=0.9, epsilon=1e-5),
         lambda: tf.contrib.layers.batch_norm(x, activation_fn =activation, center=True, scale=True,
         updates_collections=None,is_training=False, reuse=True,scope=scope_bn,decay=0.9, epsilon=1e-5))
-    
     '''
     def load_network(self):
         self.saver = tf.train.Saver()

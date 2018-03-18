@@ -1,7 +1,6 @@
 import numpy as np
 import datetime
 
-
 def ornstein_uhlenbeck_process(x, mu, theta, sigma):
     return theta * (mu - x) + sigma * np.random.randn(1)
 

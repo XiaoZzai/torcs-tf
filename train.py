@@ -4,8 +4,9 @@ import time
 import traceback
 np.random.seed(2018)
 
+from utils import formatted_timestamp
 from gym_torcs import TorcsEnv
-from ddpg import *
+from ddpg import ddpg
 from my_config import *
 
 print( is_training )
@@ -15,7 +16,7 @@ print( epsilon_start )
 
 def main(train_indicator=is_training):  # 1 means Train, 0 means simply Run
 
-    experiment_name = "reward-tf"
+    experiment_name = "reward-tf2"
     experiment_dir  = "experiment-%s/" % experiment_name
 
     if os.path.exists(experiment_dir) == False:
@@ -32,13 +33,15 @@ def main(train_indicator=is_training):  # 1 means Train, 0 means simply Run
     state_dim  = 30
     env_name   = 'torcs'
 
-    agent = DDPG(env_name, state_dim, action_dim, experiment_dir)
+    agent = ddpg(env_name, state_dim, action_dim, experiment_dir)
+    agent.load_network()
 
     vision = False
     env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=0, random_track=False, track_range=(0, 5))
     
     EXPLORE   = total_explore
     MAX_STEPS = max_steps
+    MAX_STEPS_EP = max_steps_ep
     epsilon   = epsilon_start
 
     step = 0
@@ -82,19 +85,21 @@ def main(train_indicator=is_training):  # 1 means Train, 0 means simply Run
 
             # Counting the total reward and total steps in the current episode
             total_reward = 0.
+            step_ep = 0
 
-            while step < MAX_STEPS:
+            # episode starts
+            while (step < MAX_STEPS) or (step_ep < MAX_STEPS_EP):
                 # Take noisy actions during training
                 if (train_indicator):
                     epsilon -= 1.0 / EXPLORE
-                    epsilon = max(epsilon, 0.1)
+                    epsilon = max(epsilon, 0.0)
                     a_t = agent.noise_action(s_t, epsilon)
                 else:
                     a_t = agent.action(s_t)
 
-                #ob, r_t, done, info = env.step(a_t[0],early_stop)
+                #ob, r_t, done, info = env.step(a_t[0], early_stop)
 
-                ob, r_t, done, info = env.step([a_t[0], 0.18, 0])
+                ob, r_t, done, info = env.step([a_t[0], 0.2, 0])
                 s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
                                   a_t[0]))
 
@@ -110,25 +115,27 @@ def main(train_indicator=is_training):  # 1 means Train, 0 means simply Run
                 total_reward += r_t
                 s_t = s_t1
 
-                print("Episode", i, "Step", step, "Epsilon", epsilon, "Action", a_t, "Reward", r_t )
-
                 rewards_every_steps[step] = r_t
                 actions_every_steps[step] = a_t
-
                 step += 1
+                step_ep += 1
+
                 if done:
                     break
 
-            if total_reward >= best_reward :
-                if train_indicator == 1:
-                    print(("Now we save model with reward " + str(total_reward) + " previous best reward was " + str(best_reward)))
-                    best_reward = total_reward
-                    agent.save_network("best-reward")
+                if np.mod(step + 1, 5000) == 0:
+                    if train_indicator == 1:
+                        print("Now we save model with step = ", step)
+                        agent.save_network(step + 1)
 
-            if np.mod(step + 1, 10000) == 0:
-                if train_indicator == 1:
-                    print("Now we save model with step = ", step)
-                    agent.save_network(str(step + 1))
+            # episode ends
+            # if total_reward >= best_reward :
+            #     if train_indicator == 1:
+            #         print(("Now we save model with reward " + str(total_reward) + " previous best reward was " + str(best_reward)))
+            #         best_reward = total_reward
+            #         agent.save_network("best-reward")
+
+
 
             i += 1
             print(("TOTAL REWARD @ " + str(i) + "-th Episode  : Reward " + str(total_reward)))

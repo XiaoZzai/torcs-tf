@@ -14,7 +14,7 @@ class ActorNetwork:
     def __init__(self,sess,state_dim,action_dim):
 
         self.sess = sess
-        self.state_dim = state_dim
+        self.state_dim  = state_dim
         self.action_dim = action_dim
         
         self.state_input, self.action_output, self.net = self.create_network(state_dim, action_dim)
@@ -38,7 +38,7 @@ class ActorNetwork:
 	    '''
         self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(list(zip(self.parameters_gradients, self.net)))
     
-    def create_network(self, state_dim, action_dim):
+    def create_network(self, state_dim, action_dim, use_bn=False):
 
         layer1_size = LAYER1_SIZE
         layer2_size = LAYER2_SIZE
@@ -51,7 +51,12 @@ class ActorNetwork:
         state_b2 = self.variable([layer2_size], layer1_size)
 
         layer1 = tf.nn.relu(tf.matmul(state_input, state_w1) + state_b1)
+        # if use_bn == True:
+        #     layer1 = tf.layers.batch_normalization(layer1, center=True, scale=True)
+
         layer2 = tf.nn.relu(tf.matmul(layer1, state_w2) + state_b2)
+        # if use_bn == True:
+        #     layer2 = tf.layers.batch_normalization(layer2, center=True, scale=True)
 
         steer_w = tf.Variable(tf.random_uniform([layer2_size, 1], -1e-4, 1e-4))
         steer_b = tf.Variable(tf.random_uniform([1], -1e-4, 1e-4))
@@ -69,7 +74,7 @@ class ActorNetwork:
         action_output = steer
         return state_input,action_output,[state_w1, state_b1, state_w2, state_b2, steer_w, steer_b]
 
-    def create_target_network(self, state_dim, action_dim, net):
+    def create_target_network(self, state_dim, action_dim, net, use_bn=False):
         state_input = tf.placeholder("float", [None, state_dim])
         ema = tf.train.ExponentialMovingAverage(decay=1-TAU)
         target_update = ema.apply(net)

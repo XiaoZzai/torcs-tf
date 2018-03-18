@@ -10,7 +10,7 @@ import time
 class TorcsEnv:
     terminal_judge_start = 30  # If after 100 timestep still no progress, terminated
     termination_limit_progress = 5  # [km/h], episode terminates if car is running slower than this limit
-    default_speed = 300
+    default_speed = 100
 
     initial_reset = True
 
@@ -140,12 +140,12 @@ class TorcsEnv:
         track = np.array(obs['track'])
         trackPos = np.array(obs['trackPos'])
         sp = np.array(obs['speedX'])
-        damage = np.array(obs['damage'])
+        # damage = np.array(obs['damage'])
         rpm = np.array(obs['rpm'])
 
         # please compute upper bound and lower bound
-        progress = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) - sp * np.abs(obs['trackPos']) \
-                    - np.abs(sp*(action_torcs['steer']-self.last_steer)) / 4
+        progress = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) - sp * np.abs(obs['trackPos']) / 8 \
+                    - sp * np.abs(action_torcs['steer']) * 4 # - np.abs(sp*(action_torcs['steer']-self.last_steer)) / 3
         reward = progress
 
         self.last_steer = action_torcs['steer']
@@ -155,9 +155,6 @@ class TorcsEnv:
         #     reward = -1
 
         # Termination judgement #########################
-
-
-
 
         episode_terminate = False
         # if sp > 100: # if speed is too large

@@ -3,7 +3,7 @@
 import gym
 import tensorflow as tf
 import numpy as np
-from utils import ornstein_uhlenbeck_process, formatted_timestamp
+from utils import ornstein_uhlenbeck_process
 import math
 from critic_network import CriticNetwork 
 from actor_network import ActorNetwork
@@ -17,7 +17,7 @@ BATCH_SIZE = 32
 GAMMA = 0.99
 
 
-class DDPG:
+class ddpg:
     def __init__(self, env_name, state_dim, action_dim, experiment_dir):
         self.name = 'DDPG'
         self.env_name = env_name
@@ -35,14 +35,7 @@ class DDPG:
         # initialize replay buffer
         self.replay_buffer = ReplayBuffer(REPLAY_BUFFER_SIZE)
         
-        # loading networks
         self.saver = tf.train.Saver()
-        checkpoint = tf.train.get_checkpoint_state(self.experiment_dir)
-        if checkpoint and checkpoint.model_checkpoint_path:
-            self.saver.restore(self.sess, checkpoint.model_checkpoint_path)
-            print("Successfully loaded:", checkpoint.model_checkpoint_path)
-        else:
-            print("Could not find old network weights")
 
     def train(self):
         minibatch = self.replay_buffer.getBatch(BATCH_SIZE)
@@ -78,10 +71,18 @@ class DDPG:
         # Update the target networks
         self.actor_network.update_target()
         self.critic_network.update_target()
-            
-    def save_network(self, note):
-        self.saver.save(self.sess, self.experiment_dir + self.env_name + 'network-ddpg-' + note, global_step = self.time_step)
 
+    def save_network(self, step):
+        self.saver.save(self.sess, self.experiment_dir + self.env_name + '-network-ddpg.ckpt', global_step=step)
+
+    def load_network(self):
+        checkpoint = tf.train.get_checkpoint_state(self.experiment_dir)
+        # self.saver.restore(self.sess, self.experiment_dir + 'torcsnetwork-ddpg-best-reward-20000')
+        if checkpoint and checkpoint.model_checkpoint_path:
+            self.saver.restore(self.sess, checkpoint.model_checkpoint_path)
+            print("Successfully loaded:", checkpoint.model_checkpoint_path)
+        else:
+            print("Could not find old network weights")
 
     '''
     def action(self,state):
@@ -113,7 +114,7 @@ class DDPG:
         return action[0]
     '''
 
-    def action(self,state):
+    def action(self, state):
         action = self.actor_network.action(state)
 
         action[0] = np.clip( action[0], -1 , 1 )
@@ -122,7 +123,7 @@ class DDPG:
 
         return action
 
-    def noise_action(self,state,epsilon):
+    def noise_action(self, state, epsilon):
         # Select action a_t according to the current policy and exploration noise
         action = self.actor_network.action(state)
         noise_t = np.zeros(self.action_dim)
