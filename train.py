@@ -116,6 +116,8 @@ def main(train_indicator=is_training):  # 1 means Train, 0 means simply Run
                 total_reward += r_t
                 s_t = s_t1
 
+                print("Ep", i, "Steps", step_ep, "Reward", r_t, " Actions ", a_t, " Epsilon ", epsilon)
+
                 rewards_every_steps[step] = r_t
                 actions_every_steps[step] = a_t
                 step += 1
@@ -136,12 +138,10 @@ def main(train_indicator=is_training):  # 1 means Train, 0 means simply Run
             #         best_reward = total_reward
             #         agent.save_network("best-reward")
 
-
-
-            i += 1
             print(("TOTAL REWARD @ " + str(i) + "-th Episode  : Reward " + str(total_reward)))
             print(("Total Step: " + str(step)))
             print("")
+            i += 1
 
     except:
         traceback.print_exc()
