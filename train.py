@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import time
+import tensorflow as tf
 import traceback
 np.random.seed(2018)
 
@@ -9,21 +10,36 @@ from gym_torcs import TorcsEnv
 from ddpg import ddpg
 from my_config import *
 
-print( is_training )
 print( total_explore )
 print( max_steps )
 print( epsilon_start )
 
-def main(train_indicator=is_training):  # 1 means Train, 0 means simply Run
+def main():
 
-    experiment_name = "reward-tf3"
+    EXPLORE   = total_explore
+    MAX_STEPS = max_steps
+    MAX_STEPS_EP = max_steps_ep
+    epsilon   = epsilon_start
+
+    # Creating necessary directories
+    experiment_name = "tensorboard-1"
     experiment_dir  = "experiment-%s/" % experiment_name
-
+    models_dir = experiment_dir + "model/"
+    logs_train_dir = experiment_dir + "logs-train/"
     if os.path.exists(experiment_dir) == False:
         os.mkdir(experiment_dir)
+    if os.path.exists(logs_train_dir) == False:
+        os.mkdir(logs_train_dir)
+    if os.path.exists(models_dir) == False:
+        os.mkdir(models_dir)
 
-    description = """reward = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) - sp * np.abs(obs['trackPos']) / 8 """ \
-                    """- sp * np.abs(action_torcs['steer']) * 4"""
+    description = 'Using (angle, track, trackPos, speedX, speedY, speedZ, steer) as input, output (steer)' + '\n' + \
+                    'Traing from scratch' + '\n' \
+                    'throttle = 0.16' + '\n' \
+                    'brake = 0' + '\n' \
+                    'reward = sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs["trackPos"]) / 8 ' \
+                    '- sp * np.abs(action_torcs["steer"]) * 4' + '\n' + \
+                    'Supporting tensorboard to visualize'
 
     with open(experiment_dir + "README.md", 'w') as file:
         file.write(description)
@@ -31,32 +47,41 @@ def main(train_indicator=is_training):  # 1 means Train, 0 means simply Run
         file.write(formatted_timestamp())
 
     action_dim = 1
-    state_dim  = 30
+    state_dim  = 25
     env_name   = 'torcs'
 
-    agent = ddpg(env_name, state_dim, action_dim, experiment_dir)
-    agent.load_network()
+    sess = tf.InteractiveSession()
+    agent = ddpg(env_name, sess, state_dim, action_dim, models_dir)
+    # agent.load_network()
 
     vision = False
-    env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=0, random_track=True, track_range=(0, 4))
-    
-    EXPLORE   = total_explore
-    MAX_STEPS = max_steps
-    MAX_STEPS_EP = max_steps_ep
-    epsilon   = epsilon_start
-
-    step = 0
-    best_reward = -100000
+    env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=5, random_track=False, track_range=(0, 3))
 
     rewards_every_steps = np.zeros([MAX_STEPS])
     actions_every_steps = np.zeros([MAX_STEPS, action_dim])
 
+    # sess.run(tf.initialize_all_variables())
+
+    # Using tensorboard to visualize data
+    with tf.name_scope('summary'):
+        critic_cost = tf.placeholder(dtype=tf.float32)
+        actor_action = tf.placeholder(dtype=tf.float32)
+        reward = tf.placeholder(dtype=tf.float32)
+        state = tf.placeholder(dtype=tf.float32, shape=(state_dim, ))
+        tf.summary.scalar("critic_cost", critic_cost)
+        tf.summary.scalar('actor_action', actor_action)
+        tf.summary.scalar('reward', reward)
+        tf.summary.histogram('state', state)
+        merged_summary = tf.summary.merge_all()
+
+
+    writer = tf.summary.FileWriter(logs_train_dir, sess.graph)
+
     print("Training Start.")
-
     start_time = time.time()
+    i = 0
+    step = 0
     try:
-        i = 0
-
         while step < MAX_STEPS:
             # if ((np.mod(i, 10) == 0 ) and (i>20)):
             #     train_indicator= 0
@@ -81,42 +106,42 @@ def main(train_indicator=is_training):  # 1 means Train, 0 means simply Run
             #     early_stop = 0
             print(("Episode : " + str(i) + " Replay Buffer " + str(agent.replay_buffer.count())))
 
-            s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
-                             0.0))
+            # s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
+            #                  0.0))
 
-            # Counting the total reward and total steps in the current episode
-            total_reward = 0.
+            # s_t = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
+            s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
+
+            total_reward = 0
             step_ep = 0
-
-            # episode starts
-            while (step < MAX_STEPS) or (step_ep < MAX_STEPS_EP):
+            while (step < MAX_STEPS) and (step_ep < MAX_STEPS_EP):
                 # Take noisy actions during training
-                if (train_indicator):
-                    epsilon -= 1.0 / EXPLORE
-                    epsilon = max(epsilon, 0.0)
-                    a_t = agent.noise_action(s_t, epsilon)
-                else:
-                    a_t = agent.action(s_t)
+                epsilon -= 1.0 / EXPLORE
+                epsilon = max(epsilon, 0.0)
+                a_t = agent.noise_action(s_t, epsilon)
 
                 #ob, r_t, done, info = env.step(a_t[0], early_stop)
 
-                ob, r_t, done, info = env.step([a_t[0], 0.2, 0])
-                s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
-                                  a_t[0]))
+                ob, r_t, done, info = env.step([a_t[0], 0.16, 0])
+                # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
+                #                   a_t[0]))
+                # s_t1 = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
+                s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
 
-                if (train_indicator):
-                    agent.perceive(s_t, a_t, r_t, s_t1, done)
+                cost = agent.perceive(s_t, a_t, r_t, s_t1, done)
+                summary = sess.run([merged_summary], feed_dict={
+                    critic_cost : cost,
+                    actor_action : a_t[0],
+                    reward : r_t,
+                    state : s_t
+                })
 
-                # Cheking for nan rewards
-                # if ( math.isnan( r_t )):
-                #     r_t = 0.0
-                #     for bad_r in range( 50 ):
-                #         print( 'Bad Reward Found' )
+                writer.add_summary(summary[0], step)
 
                 total_reward += r_t
                 s_t = s_t1
 
-                print("Ep", i, "Steps", step_ep, "Reward", r_t, " Actions ", a_t, " Epsilon ", epsilon)
+                print("Ep", i, "Total steps", step, "Reward", r_t, " Actions ", a_t, " Epsilon ", epsilon, "Step ep", step_ep)
 
                 rewards_every_steps[step] = r_t
                 actions_every_steps[step] = a_t
@@ -126,17 +151,9 @@ def main(train_indicator=is_training):  # 1 means Train, 0 means simply Run
                 if done:
                     break
 
-                if np.mod(step + 1, 50000) == 0:
-                    if train_indicator == 1:
+                if np.mod(step + 1, 10000) == 0:
                         print("Now we save model with step = ", step)
                         agent.save_network(step + 1)
-
-            # episode ends
-            # if total_reward >= best_reward :
-            #     if train_indicator == 1:
-            #         print(("Now we save model with reward " + str(total_reward) + " previous best reward was " + str(best_reward)))
-            #         best_reward = total_reward
-            #         agent.save_network("best-reward")
 
             print(("TOTAL REWARD @ " + str(i) + "-th Episode  : Reward " + str(total_reward)))
             print(("Total Step: " + str(step)))
@@ -145,21 +162,22 @@ def main(train_indicator=is_training):  # 1 means Train, 0 means simply Run
 
     except:
         traceback.print_exc()
-        with open((experiment_dir + "exception"), 'w') as file:
+        with open((logs_train_dir + "exception"), 'w') as file:
             file.write(str(traceback.format_exc()))
 
     finally:
         env.end()
         end_time = time.time()
 
-        np.save(experiment_dir + "reward-train.npy", rewards_every_steps)
-        np.save(experiment_dir + "action-train.npy", actions_every_steps)
+        np.save(logs_train_dir + "reward.npy", rewards_every_steps)
+        np.save(logs_train_dir + "action.npy", actions_every_steps)
 
-        with open(experiment_dir + "log-train", 'w') as file:
-            file.write("epsilon start = %d" % epsilon_start)
-            file.write("total explore = %d" % total_explore)
-            file.write("total step = %d\n" % step)
-            file.write("total time = %s (s)\n" % str(end_time - start_time))
+        with open(logs_train_dir + "log", 'w') as file:
+            file.write("epsilon_start = %d" % epsilon_start)
+            file.write("total_explore = %d" % total_explore)
+            file.write("total_episode = %d\n" % i)
+            file.write("total_step = %d\n" % step)
+            file.write("total_time = %s (s)\n" % str(end_time - start_time))
 
         print("Finish.")
 

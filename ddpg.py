@@ -18,16 +18,16 @@ GAMMA = 0.99
 
 
 class ddpg:
-    def __init__(self, env_name, state_dim, action_dim, experiment_dir):
+    def __init__(self, env_name, sess, state_dim, action_dim, models_dir):
         self.name = 'DDPG'
         self.env_name = env_name
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.experiment_dir = experiment_dir
+        self.models_dir = models_dir
         
         # Ensure action bound is symmetric
         self.time_step = 0 
-        self.sess = tf.InteractiveSession()
+        self.sess = sess
 
         self.actor_network = ActorNetwork(self.sess, self.state_dim, self.action_dim)
         self.critic_network = CriticNetwork(self.sess, self.state_dim, self.action_dim)
@@ -49,7 +49,6 @@ class ddpg:
         action_batch = np.resize(action_batch, [BATCH_SIZE, self.action_dim])
 
         # Calculate y_batch
-        
         next_action_batch = self.actor_network.target_actions(next_state_batch)
         q_value_batch = self.critic_network.target_q(next_state_batch, next_action_batch)
         y_batch = []  
@@ -60,7 +59,7 @@ class ddpg:
                 y_batch.append(reward_batch[i] + GAMMA * q_value_batch[i])
         y_batch = np.resize(y_batch,[BATCH_SIZE, 1])
 
-        self.critic_network.train(y_batch, state_batch, action_batch)
+        critic_cost = self.critic_network.train(y_batch, state_batch, action_batch)
 
         # Update the actor policy using the sampled gradient:
         action_batch_for_gradients = self.actor_network.actions(state_batch)
@@ -71,12 +70,13 @@ class ddpg:
         # Update the target networks
         self.actor_network.update_target()
         self.critic_network.update_target()
+        return critic_cost
 
     def save_network(self, step):
-        self.saver.save(self.sess, self.experiment_dir + self.env_name + '-network-ddpg.ckpt', global_step=step)
+        self.saver.save(self.sess, self.models_dir + self.env_name + '-network-ddpg.ckpt', global_step=step)
 
     def load_network(self):
-        checkpoint = tf.train.get_checkpoint_state(self.experiment_dir)
+        checkpoint = tf.train.get_checkpoint_state(self.models_dir)
         # self.saver.restore(self.sess, self.experiment_dir + 'torcsnetwork-ddpg-best-reward-20000')
         if checkpoint and checkpoint.model_checkpoint_path:
             self.saver.restore(self.sess, checkpoint.model_checkpoint_path)
@@ -141,9 +141,12 @@ class ddpg:
     def perceive(self, state, action, reward, next_state, done):
         if ( not (math.isnan( reward ))):
             self.replay_buffer.add(state, action, reward, next_state, done)
-        
-        self.time_step =  self.time_step + 1 
+        self.time_step =  self.time_step + 1
+
+        # Return critic cost
         if self.replay_buffer.count() >  REPLAY_START_SIZE:
-            self.train()
+            return self.train()
+        else:
+            return 0
 
 

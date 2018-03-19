@@ -150,13 +150,17 @@ class TorcsEnv:
 
         self.last_steer = action_torcs['steer']
 
+        episode_terminate = False
+
         # collision detection
         # if obs['damage'] - obs_pre['damage'] > 0:
-        #     reward = -1
+        #     print("Collision")
+        #     reward = -200
+        #     episode_terminate = True
+        #     client.R.d['meta'] = True
 
         # Termination judgement #########################
 
-        episode_terminate = False
         # if sp > 100: # if speed is too large
         #     print("Over speed")
         #     reward = -200

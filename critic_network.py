@@ -33,16 +33,6 @@ class CriticNetwork:
         weight_decay = tf.add_n([L2 * tf.nn.l2_loss(var) for var in self.net])
         self.cost = tf.reduce_mean(tf.square(self.y_input - self.q_value_output)) + weight_decay
         self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(self.cost)
-        '''
-        self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE)
-        self.parameters_gradients = self.optimizer.compute_gradients(self.cost)
-
-        for i, (grad,var) in enumerate(self.parameters_gradients):
-            if grad is not None:
-                self.parameters_gradients[i] = (tf.clip_by_value(grad, -5.0,5.0),var)
-
-        self.train_op = self.optimizer.apply_gradients(self.parameters_gradients)
-	'''
         self.action_gradients = tf.gradients(self.q_value_output, self.action_input)
 
     def create_q_network(self,state_dim,action_dim):
@@ -68,7 +58,7 @@ class CriticNetwork:
 
         return state_input, action_input, q_value_output, [state_w1, state_b1, state_w2, action_w2, b2, w3, b3]
 
-    def create_target_q_network(self, state_dim,action_dim, net):
+    def create_target_q_network(self, state_dim, action_dim, net):
         
         state_input = tf.placeholder("float", [None, state_dim])
         action_input = tf.placeholder("float", [None, action_dim])
@@ -88,11 +78,12 @@ class CriticNetwork:
 
     def train(self, y_batch, state_batch, action_batch):
         self.time_step += 1
-        self.sess.run(self.optimizer, feed_dict={
+        cost, _ = self.sess.run([self.cost, self.optimizer], feed_dict={
             self.y_input : y_batch,
             self.state_input : state_batch,
             self.action_input : action_batch
         })
+        return cost
 
     def gradients(self, state_batch, action_batch):
         return self.sess.run(self.action_gradients, feed_dict={
