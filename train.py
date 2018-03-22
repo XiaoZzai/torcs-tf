@@ -22,7 +22,7 @@ def main():
     epsilon   = epsilon_start
 
     # Creating necessary directories
-    experiment_name = "tensorboard-11"
+    experiment_name = "tensorboard-12"
     experiment_dir  = "experiment-%s/" % experiment_name
     models_dir = experiment_dir + "model/"
     logs_train_dir = experiment_dir + "logs-train/"
@@ -34,13 +34,14 @@ def main():
         os.mkdir(models_dir)
 
     description = 'Using the (angle, track, trackPos, speedX, speedY, speedZ, rpm, steer) as input, output (steer)' + '\n' + \
-                    'Training based on experiment-tensorboard-10' + '\n\n' \
+                    'Training based on experiment-tensorboard-11' + '\n\n' \
                     'throttle = 0.16' + '\n\n' \
                     'brake = 0' + '\n\n' \
-                    'sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs["trackPos"]) / 2 \
+                    'sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs["trackPos"])  \
                     - sp * np.abs(action_torcs["steer"]) * 4' + '\n\n' + \
                     'env = TorcsEnv(vision=False, throttle=True, text_mode=False, track_no=6, random_track=False, track_range=(5, 8))' + '\n\n' \
                     'abs(trackPos) > 0.9 is out of track' + '\n\n' \
+                    'actor_rl=1e-5, critic_rl=1e-4'
 
     with open(experiment_dir + "README.md", 'w') as file:
         file.write(description)
