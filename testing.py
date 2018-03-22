@@ -93,7 +93,6 @@ def main():
                 # s_t1 = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
                 # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
 
-                cost = agent.perceive(s_t, a_t, r_t, s_t1, done)
                 summary = sess.run([merged_summary], feed_dict={
                     actor_action : a_t[0],
                     reward : r_t,
