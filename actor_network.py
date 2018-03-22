@@ -38,25 +38,25 @@ class ActorNetwork:
 	    '''
         self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(list(zip(self.parameters_gradients, self.net)))
     
-    def create_network(self, state_dim, action_dim, use_bn=False):
+    def create_network(self, state_dim, action_dim, img_dim):
 
         layer1_size = LAYER1_SIZE
         layer2_size = LAYER2_SIZE
 
-        state_input = tf.placeholder("float", [None, state_dim])
+        # Image state input
+        img_input = tf.placeholder(dtype=tf.uint8, shape=[None, img_dim[0], img_dim[1], img_dim[2]])
+        img_w1 = tf.Variable(tf.random_uniform([layer2_size, 1], -1e-4, 1e-4))
+        img_w1 = tf.nn.conv2d(img_input, , strides=[1, 1, 1, 1], padding='SAME')
 
+        # Scalar state input
+        state_input = tf.placeholder(dtype=tf.float32, shape=[None, state_dim])
         state_w1 = self.variable([state_dim, layer1_size], state_dim)
         state_b1 = self.variable([layer1_size], state_dim)
         state_w2 = self.variable([layer1_size, layer2_size], layer1_size)
         state_b2 = self.variable([layer2_size], layer1_size)
 
         layer1 = tf.nn.relu(tf.matmul(state_input, state_w1) + state_b1)
-        # if use_bn == True:
-        #     layer1 = tf.layers.batch_normalization(layer1, center=True, scale=True)
-
         layer2 = tf.nn.relu(tf.matmul(layer1, state_w2) + state_b2)
-        # if use_bn == True:
-        #     layer2 = tf.layers.batch_normalization(layer2, center=True, scale=True)
 
         steer_w = tf.Variable(tf.random_uniform([layer2_size, 1], -1e-4, 1e-4))
         steer_b = tf.Variable(tf.random_uniform([1], -1e-4, 1e-4))
