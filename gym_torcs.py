@@ -147,8 +147,8 @@ class TorcsEnv:
         # progress = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) - sp * np.abs(obs['trackPos']) \
         #             - sp * np.abs(action_torcs['steer']) * 2 - np.abs(sp*(action_torcs['steer']-self.last_steer)) * 5
 
-        progress = sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs['trackPos']) / 2 \
-                    - sp * np.abs(action_torcs['steer']) * 2
+        progress = sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs['trackPos']) \
+                    - sp * np.abs(action_torcs['steer']) * 4
 
         reward = progress
 
@@ -321,7 +321,7 @@ class TorcsEnv:
                                speedZ=np.array(raw_obs['speedZ'], dtype=np.float32)/self.default_speed,
                                angle=np.array(raw_obs['angle'], dtype=np.float32) / 3.1415926,
                                opponents=np.array(raw_obs['opponents'], dtype=np.float32)/200.,
-                               rpm=np.array(raw_obs['rpm'], dtype=np.float32),
+                               rpm=np.array(raw_obs['rpm'], dtype=np.float32)/10000,
                                track=np.array(raw_obs['track'], dtype=np.float32)/200.,
                                trackPos=np.array(raw_obs['trackPos'], dtype=np.float32)/1.,
                                wheelSpinVel=np.array(raw_obs['wheelSpinVel'], dtype=np.float32),
