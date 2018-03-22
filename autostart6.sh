@@ -15,7 +15,7 @@ xte 'usleep 100000'
 xte 'key Return'
 xte 'usleep 100000'
 
-for i in `seq 1 1`
+for i in `seq 1 25`
 do
     xte 'key Right'
     xte 'usleep 100000'

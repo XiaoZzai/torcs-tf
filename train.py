@@ -22,7 +22,7 @@ def main():
     epsilon   = epsilon_start
 
     # Creating necessary directories
-    experiment_name = "tensorboard-1"
+    experiment_name = "tensorboard-11"
     experiment_dir  = "experiment-%s/" % experiment_name
     models_dir = experiment_dir + "model/"
     logs_train_dir = experiment_dir + "logs-train/"
@@ -33,13 +33,14 @@ def main():
     if os.path.exists(models_dir) == False:
         os.mkdir(models_dir)
 
-    description = 'Using (angle, track, trackPos, speedX, speedY, speedZ, steer) as input, output (steer)' + '\n' + \
-                    'Traing from scratch' + '\n' \
-                    'throttle = 0.16' + '\n' \
-                    'brake = 0' + '\n' \
-                    'reward = sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs["trackPos"]) / 8 ' \
-                    '- sp * np.abs(action_torcs["steer"]) * 4' + '\n' + \
-                    'Supporting tensorboard to visualize'
+    description = 'Using the (angle, track, trackPos, speedX, speedY, speedZ, rpm, steer) as input, output (steer)' + '\n' + \
+                    'Training based on experiment-tensorboard-10' + '\n\n' \
+                    'throttle = 0.16' + '\n\n' \
+                    'brake = 0' + '\n\n' \
+                    'sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs["trackPos"]) / 2 \
+                    - sp * np.abs(action_torcs["steer"]) * 4' + '\n\n' + \
+                    'env = TorcsEnv(vision=False, throttle=True, text_mode=False, track_no=6, random_track=False, track_range=(5, 8))' + '\n\n' \
+                    'abs(trackPos) > 0.9 is out of track' + '\n\n' \
 
     with open(experiment_dir + "README.md", 'w') as file:
         file.write(description)
@@ -52,10 +53,10 @@ def main():
 
     sess = tf.InteractiveSession()
     agent = ddpg(env_name, sess, state_dim, action_dim, models_dir)
-    # agent.load_network()
+    agent.load_network()
 
     vision = False
-    env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=5, random_track=False, track_range=(0, 3))
+    env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=6, random_track=False, track_range=(5, 8))
 
     rewards_every_steps = np.zeros([MAX_STEPS])
     actions_every_steps = np.zeros([MAX_STEPS, action_dim])
@@ -108,9 +109,10 @@ def main():
 
             # s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
             #                  0.0))
-
-            # s_t = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
             s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
+
+            # x_t = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
+            # s_t = np.hstack((x_t, x_t, x_t, x_t))
 
             total_reward = 0
             step_ep = 0
@@ -125,8 +127,11 @@ def main():
                 ob, r_t, done, info = env.step([a_t[0], 0.16, 0])
                 # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
                 #                   a_t[0]))
-                # s_t1 = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
                 s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
+
+                # x_t1 = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
+                # s_t1 = np.hstack((np.roll(s_t, -6)[:18], x_t1))
+                # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
 
                 cost = agent.perceive(s_t, a_t, r_t, s_t1, done)
                 summary = sess.run([merged_summary], feed_dict={
@@ -173,8 +178,8 @@ def main():
         np.save(logs_train_dir + "action.npy", actions_every_steps)
 
         with open(logs_train_dir + "log", 'w') as file:
-            file.write("epsilon_start = %d" % epsilon_start)
-            file.write("total_explore = %d" % total_explore)
+            file.write("epsilon_start = %d\n" % epsilon_start)
+            file.write("total_explore = %d\n" % total_explore)
             file.write("total_episode = %d\n" % i)
             file.write("total_step = %d\n" % step)
             file.write("total_time = %s (s)\n" % str(end_time - start_time))

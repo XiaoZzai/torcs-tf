@@ -144,8 +144,12 @@ class TorcsEnv:
         rpm = np.array(obs['rpm'])
 
         # please compute upper bound and lower bound
-        progress = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) - sp * np.abs(obs['trackPos']) / 8 \
-                    - sp * np.abs(action_torcs['steer']) * 4 # - np.abs(sp*(action_torcs['steer']-self.last_steer)) / 3
+        # progress = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) - sp * np.abs(obs['trackPos']) \
+        #             - sp * np.abs(action_torcs['steer']) * 2 - np.abs(sp*(action_torcs['steer']-self.last_steer)) * 5
+
+        progress = sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs['trackPos']) / 2 \
+                    - sp * np.abs(action_torcs['steer']) * 2
+
         reward = progress
 
         self.last_steer = action_torcs['steer']
@@ -167,7 +171,7 @@ class TorcsEnv:
         #     episode_terminate = True
         #     client.R.d['meta'] = True
 
-        if (abs(track.any()) > 1 or abs(trackPos) > 1):  # Episode is terminated if the car is out of track
+        if abs(trackPos) > 0.9:  # Episode is terminated if the car is out of track
             print("Out of track")
             reward = -200
             episode_terminate = True

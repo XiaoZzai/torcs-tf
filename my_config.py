@@ -1,7 +1,6 @@
 # my_config.py
 
-is_training = 1
-epsilon_start  = 1.0
-total_explore  = 15000
-max_steps = 20000
+epsilon_start  = 0.5
+total_explore  = 20000
+max_steps = 30000
 max_steps_ep = 2000
