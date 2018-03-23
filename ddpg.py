@@ -11,26 +11,27 @@ from ReplayBuffer import ReplayBuffer
 
 # Hyper Parameters:
 
-REPLAY_BUFFER_SIZE = 100000
+REPLAY_BUFFER_SIZE = 20000
 REPLAY_START_SIZE = 100
 BATCH_SIZE = 32
 GAMMA = 0.99
 
 
 class ddpg:
-    def __init__(self, env_name, sess, state_dim, action_dim, models_dir):
+    def __init__(self, env_name, sess, state_dim, action_dim, img_dim, models_dir):
         self.name = 'DDPG'
         self.env_name = env_name
         self.state_dim = state_dim
         self.action_dim = action_dim
+        self.img_dim = img_dim
         self.models_dir = models_dir
         
         # Ensure action bound is symmetric
         self.time_step = 0 
         self.sess = sess
 
-        self.actor_network = ActorNetwork(self.sess, self.state_dim, self.action_dim)
-        self.critic_network = CriticNetwork(self.sess, self.state_dim, self.action_dim)
+        self.actor_network = ActorNetwork(self.sess, self.state_dim, self.action_dim, self.img_dim)
+        self.critic_network = CriticNetwork(self.sess, self.state_dim, self.action_dim, self.img_dim)
         
         # initialize replay buffer
         self.replay_buffer = ReplayBuffer(REPLAY_BUFFER_SIZE)
@@ -40,32 +41,34 @@ class ddpg:
     def train(self):
         minibatch = self.replay_buffer.getBatch(BATCH_SIZE)
         state_batch = np.asarray([data[0] for data in minibatch])
-        action_batch = np.asarray([data[1] for data in minibatch])
-        reward_batch = np.asarray([data[2] for data in minibatch])
-        next_state_batch = np.asarray([data[3] for data in minibatch])
-        done_batch = np.asarray([data[4] for data in minibatch])
+        img_batch = np.asarray(data[1] for data in minibatch)
+        action_batch = np.asarray([data[2] for data in minibatch])
+        reward_batch = np.asarray([data[3] for data in minibatch])
+        next_state_batch = np.asarray([data[4] for data in minibatch])
+        next_img_batch = np.asarray([data[5] for data in minibatch])
+        done_batch = np.asarray([data[6] for data in minibatch])
 
         # for action_dim = 1
         action_batch = np.resize(action_batch, [BATCH_SIZE, self.action_dim])
 
         # Calculate y_batch
-        next_action_batch = self.actor_network.target_actions(next_state_batch)
-        q_value_batch = self.critic_network.target_q(next_state_batch, next_action_batch)
+        next_action_batch = self.actor_network.target_actions(next_state_batch, next_img_batch)
+        q_value_batch = self.critic_network.target_q(next_state_batch, next_action_batch, next_img_batch)
         y_batch = []  
         for i in range(len(minibatch)): 
             if done_batch[i]:
                 y_batch.append(reward_batch[i])
             else :
                 y_batch.append(reward_batch[i] + GAMMA * q_value_batch[i])
-        y_batch = np.resize(y_batch,[BATCH_SIZE, 1])
+        y_batch = np.resize(y_batch, [BATCH_SIZE, 1])
 
-        critic_cost = self.critic_network.train(y_batch, state_batch, action_batch)
+        critic_cost = self.critic_network.train(y_batch, state_batch, action_batch, img_batch)
 
         # Update the actor policy using the sampled gradient:
-        action_batch_for_gradients = self.actor_network.actions(state_batch)
-        q_gradient_batch = self.critic_network.gradients(state_batch, action_batch_for_gradients)
+        action_batch_for_gradients = self.actor_network.actions(state_batch, img_batch)
+        q_gradient_batch = self.critic_network.gradients(state_batch, action_batch_for_gradients, img_batch)
 
-        self.actor_network.train(q_gradient_batch, state_batch)
+        self.actor_network.train(q_gradient_batch, state_batch, img_batch)
 
         # Update the target networks
         self.actor_network.update_target()
@@ -114,8 +117,8 @@ class ddpg:
         return action[0]
     '''
 
-    def action(self, state):
-        action = self.actor_network.action(state)
+    def action(self, state, img):
+        action = self.actor_network.action(state, img)
 
         action[0] = np.clip( action[0], -1 , 1 )
         # action[1] = np.clip( action[1], 0 , 1 )
@@ -123,9 +126,9 @@ class ddpg:
 
         return action
 
-    def noise_action(self, state, epsilon):
+    def noise_action(self, state, img, epsilon):
         # Select action a_t according to the current policy and exploration noise
-        action = self.actor_network.action(state)
+        action = self.actor_network.action(state, img)
         noise_t = np.zeros(self.action_dim)
         noise_t[0] = epsilon * ornstein_uhlenbeck_process(action[0],  0.0 , 0.60, 0.80)
         # noise_t[1] = epsilon * ornstein_uhlenbeck_process(action[1],  0.5 , 1.00, 0.10)
@@ -138,9 +141,9 @@ class ddpg:
 
         return action
     
-    def perceive(self, state, action, reward, next_state, done):
-        if ( not (math.isnan( reward ))):
-            self.replay_buffer.add(state, action, reward, next_state, done)
+    def perceive(self, state, img, action, reward, next_state, next_img, done):
+        if not (math.isnan(reward)):
+            self.replay_buffer.add(state, img, action, reward, next_state, next_img, done)
         self.time_step =  self.time_step + 1
 
         # Return critic cost

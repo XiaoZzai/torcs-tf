@@ -5,7 +5,7 @@ import copy
 import collections as col
 import os
 import time
-
+import cv2
 
 class TorcsEnv:
     terminal_judge_start = 30  # If after 100 timestep still no progress, terminated
@@ -313,7 +313,8 @@ class TorcsEnv:
             Observation = col.namedtuple('Observaion', names)
 
             # Get RGB from observation
-            image_rgb = self.obs_vision_to_image_rgb(raw_obs[names[10]])
+            image_rgb = self.obs_vision_to_image_rgb(raw_obs[names[10]]) / 255.0
+            image_rgb = cv2.flip(image_rgb, 0)
 
             return Observation(focus=np.array(raw_obs['focus'], dtype=np.float32)/200.,
                                speedX=np.array(raw_obs['speedX'], dtype=np.float32)/self.default_speed,

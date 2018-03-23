@@ -40,33 +40,33 @@ class CriticNetwork:
         layer2_size = LAYER2_SIZE
 
         # Image state input
-        img_input = tf.placeholder(dtype=tf.uint8, shape=[None, img_dim[0], img_dim[1], img_dim[2]])
+        img_input = tf.placeholder(dtype=tf.float32, shape=[None, img_dim[0], img_dim[1], img_dim[2]])
 
         img_w1 = tf.Variable(tf.random_uniform(([5, 5, 3, 16]), -1e-4, 1e-4))
         img_b1 = tf.Variable(tf.random_uniform([16], 1e-4, 1e-4))
         # 60*60*16
-        img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, img_w1, strides=[1, 1, 1, 1]) + img_b1)
+        img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, img_w1, [1, 1, 1, 1], "VALID") + img_b1)
         # 30*30*16
-        img_layer2 = tf.nn.max_pool(img_layer1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
+        img_layer2 = tf.nn.max_pool(img_layer1, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
 
         img_w2 = tf.Variable(tf.random_uniform(([5, 5, 16, 32]), -1e-4, 1e-4))
         img_b2 = tf.Variable(tf.random_uniform([32], 1e-4, 1e-4))
         # 26*26*32
-        img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, img_w2, strides=[1, 1, 1, 1]) + img_b2)
+        img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, img_w2, [1, 1, 1, 1], "VALID") + img_b2)
         # 13*13*32
-        img_layer4 = tf.nn.max_pool(img_layer3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
+        img_layer4 = tf.nn.max_pool(img_layer3, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
 
         img_w3 = tf.Variable(tf.random_uniform(([4, 4, 32, 64]), -1e-4, 1e-4))
         img_b3 = tf.Variable(tf.random_uniform([64], 1e-4, 1e-4))
         # 10*10*64
-        img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, img_w3, strides=[1, 1, 1, 1]) + img_b3)
+        img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, img_w3, [1, 1, 1, 1], "VALID") + img_b3)
         # 5*5*64
-        img_layer6 = tf.nn.max_pool(img_layer5, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
+        img_layer6 = tf.nn.max_pool(img_layer5, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
 
-        img_layer7 = img_layer6.reshape(5*5*64)
+        img_layer7 = tf.reshape(img_layer6, [1, 5*5*64])
 
         img_w4 = tf.Variable(tf.random_uniform([5*5*64, layer1_size], -1e-4, 1e-4))
-        img_b4 = tf.Variable(tf.random_uniform([layer1_size]), -1e-4, 1e-4)
+        img_b4 = tf.Variable(tf.random_uniform([layer1_size], -1e-4, 1e-4))
 
         img_layer8 = tf.nn.relu(tf.matmul(img_layer7, img_w4) + img_b4)
 
@@ -101,13 +101,13 @@ class CriticNetwork:
         target_net = [ema.average(x) for x in net]
 
         img_input = tf.placeholder(dtype=tf.float32, shape=[None, img_dim[0], img_dim[1], img_dim[2]])
-        img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, net[7], strides=[1, 1, 1, 1]) + net[8])
-        img_layer2 = tf.nn.max_pool(img_layer1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
-        img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, net[9], strides=[1, 1, 1, 1]) + net[10])
-        img_layer4 = tf.nn.max_pool(img_layer3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
-        img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, net[11], strides=[1, 1, 1, 1]) + net[12])
-        img_layer6 = tf.nn.max_pool(img_layer5, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
-        img_layer7 = img_layer6.reshape(5*5*64)
+        img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, net[7], [1, 1, 1, 1], "VALID") + net[8])
+        img_layer2 = tf.nn.max_pool(img_layer1, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
+        img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, net[9], [1, 1, 1, 1], "VALID") + net[10])
+        img_layer4 = tf.nn.max_pool(img_layer3, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
+        img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, net[11], [1, 1, 1, 1], "VALID") + net[12])
+        img_layer6 = tf.nn.max_pool(img_layer5, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
+        img_layer7 = tf.reshape(img_layer6, [1, 5*5*64])
         img_layer8 = tf.nn.relu(tf.matmul(img_layer7, net[13]) + net[14])
 
         layer1 = tf.nn.relu(tf.matmul(state_input, target_net[0]) + target_net[1])
