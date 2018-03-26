@@ -41,7 +41,7 @@ def main():
     env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=collect_track_no, random_track=False, track_range=(0, 3))
 
     print("Collecting Start.")
-    max_data_entry_count = 500
+    max_data_entry_count = 10000
     data_entry_count = 0
     start_time = time.time()
     i = 0
@@ -66,8 +66,9 @@ def main():
                 s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ,
                                   ob.wheelSpinVel/100.0, ob.rpm, a_t[0]))
 
-                image = cv2.flip(ob.img, 0)
-                if step % 5 == 0:
+                image = ob.img
+                # print(image)
+                if step > 20:
                     cv2.imwrite(datas_dir + ("%d-%d.jpg" % (collect_track_no, data_entry_count)), image)
                     file.write("%f %f %f %f %f\n" % (ob.speedX, ob.speedY, ob.speedZ, pre_a_t, a_t[0]))
                     data_entry_count += 1

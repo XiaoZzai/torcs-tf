@@ -69,7 +69,7 @@ class TorcsEnv:
             self.observation_space = spaces.Box(low=low, high=high)
 
     def step(self, u):
-       #print("Step")
+        # print("Step")
         # convert thisAction to the actual torcs actionstr
         client = self.client
 
@@ -313,7 +313,7 @@ class TorcsEnv:
             Observation = col.namedtuple('Observaion', names)
 
             # Get RGB from observation
-            image_rgb = self.obs_vision_to_image_rgb(raw_obs[names[10]]) / 255.0
+            image_rgb = self.obs_vision_to_image_rgb(raw_obs[names[10]])
             image_rgb = cv2.flip(image_rgb, 0)
 
             return Observation(focus=np.array(raw_obs['focus'], dtype=np.float32)/200.,

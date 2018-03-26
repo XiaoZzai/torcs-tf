@@ -54,7 +54,7 @@ def main():
     env_name   = 'torcs'
 
     sess = tf.InteractiveSession()
-    agent = ddpg(env_name, sess, state_dim, action_dim, img_dim, models_dir)
+    agent = ddpg(env_name, sess, state_dim, action_dim, models_dir, img_dim)
     agent.load_network()
 
     vision = True
@@ -125,7 +125,7 @@ def main():
                 # Take noisy actions during training
                 epsilon -= 1.0 / EXPLORE
                 epsilon = max(epsilon, 0.0)
-                a_t = agent.noise_action(s_t, i_t, epsilon)
+                a_t = agent.noise_action(s_t, epsilon, i_t)
 
                 #ob, r_t, done, info = env.step(a_t[0], early_stop)
 
@@ -141,8 +141,8 @@ def main():
                 # s_t1 = np.hstack((np.roll(s_t, -6)[:18], x_t1))
                 # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
 
-                cost = agent.perceive(s_t, i_t, a_t, r_t, s_t1, i_t1, done)
-                summary = sess.run([merged_summary], feed_dict={
+                cost = agent.perceive(s_t, a_t, r_t, s_t1, done, i_t, i_t1)
+                summary = sess.run(merged_summary, feed_dict={
                     critic_cost : cost,
                     actor_action : a_t[0],
                     reward : r_t,
@@ -150,7 +150,7 @@ def main():
                     img : i_t.reshape(1, 64, 64, 3)
                 })
 
-                writer.add_summary(summary[0], step)
+                writer.add_summary(summary, step)
 
                 total_reward += r_t
                 s_t = s_t1
