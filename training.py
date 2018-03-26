@@ -34,15 +34,14 @@ def main():
     if os.path.exists(models_dir) == False:
         os.mkdir(models_dir)
 
-    description = 'Using the (angle, track, trackPos, speedX, speedY, speedZ, rpm, steer) as input, output (steer)' + '\n' + \
-                    'Training based on experiment-tensorboard-11' + '\n\n' \
+    description = 'Using raw pixels as input, output (steer)' + '\n' + \
+                    'Training from scratch' + '\n\n' \
                     'throttle = 0.16' + '\n\n' \
                     'brake = 0' + '\n\n' \
                     'sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs["trackPos"])  \
                     - sp * np.abs(action_torcs["steer"]) * 4' + '\n\n' + \
                     'env = TorcsEnv(vision=False, throttle=True, text_mode=False, track_no=5, random_track=False, track_range=(5, 8))' + '\n\n' \
                     'abs(trackPos) > 0.9 is out of track' + '\n\n' \
-                    'actor_rl=1e-5, critic_rl=1e-4'
 
     with open(experiment_dir + "README.md", 'w') as file:
         file.write(description)
@@ -72,7 +71,7 @@ def main():
         actor_action = tf.placeholder(dtype=tf.float32)
         reward = tf.placeholder(dtype=tf.float32)
         state = tf.placeholder(dtype=tf.float32, shape=(state_dim, ))
-        img = tf.placeholder(dtype=tf.float32, shape=img_dim)
+        img = tf.placeholder(dtype=tf.float32, shape=(1, img_dim[0], img_dim[1], img_dim[2]))
         tf.summary.scalar("critic_cost", critic_cost)
         tf.summary.scalar('actor_action', actor_action)
         tf.summary.scalar('reward', reward)
@@ -148,7 +147,7 @@ def main():
                     actor_action : a_t[0],
                     reward : r_t,
                     state : s_t,
-                    img : i_t
+                    img : i_t.reshape(1, 64, 64, 3)
                 })
 
                 writer.add_summary(summary[0], step)

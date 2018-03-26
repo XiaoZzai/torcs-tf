@@ -41,7 +41,7 @@ class ddpg:
     def train(self):
         minibatch = self.replay_buffer.getBatch(BATCH_SIZE)
         state_batch = np.asarray([data[0] for data in minibatch])
-        img_batch = np.asarray(data[1] for data in minibatch)
+        img_batch = np.asarray([data[1] for data in minibatch])
         action_batch = np.asarray([data[2] for data in minibatch])
         reward_batch = np.asarray([data[3] for data in minibatch])
         next_state_batch = np.asarray([data[4] for data in minibatch])
@@ -62,6 +62,7 @@ class ddpg:
                 y_batch.append(reward_batch[i] + GAMMA * q_value_batch[i])
         y_batch = np.resize(y_batch, [BATCH_SIZE, 1])
 
+        # print(img_batch)
         critic_cost = self.critic_network.train(y_batch, state_batch, action_batch, img_batch)
 
         # Update the actor policy using the sampled gradient:

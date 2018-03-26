@@ -63,7 +63,7 @@ class CriticNetwork:
         # 5*5*64
         img_layer6 = tf.nn.max_pool(img_layer5, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
 
-        img_layer7 = tf.reshape(img_layer6, [1, 5*5*64])
+        img_layer7 = tf.reshape(img_layer6, [-1, 5*5*64])
 
         img_w4 = tf.Variable(tf.random_uniform([5*5*64, layer1_size], -1e-4, 1e-4))
         img_b4 = tf.Variable(tf.random_uniform([layer1_size], -1e-4, 1e-4))
@@ -107,7 +107,7 @@ class CriticNetwork:
         img_layer4 = tf.nn.max_pool(img_layer3, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
         img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, net[11], [1, 1, 1, 1], "VALID") + net[12])
         img_layer6 = tf.nn.max_pool(img_layer5, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
-        img_layer7 = tf.reshape(img_layer6, [1, 5*5*64])
+        img_layer7 = tf.reshape(img_layer6, [-1, 5*5*64])
         img_layer8 = tf.nn.relu(tf.matmul(img_layer7, net[13]) + net[14])
 
         layer1 = tf.nn.relu(tf.matmul(state_input, target_net[0]) + target_net[1])
