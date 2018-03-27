@@ -50,7 +50,7 @@ def main():
 
     action_dim = 1
     state_dim  = 4
-    img_dim = [64, 64, 3]
+    img_dim = [304, 412, 3]
     env_name   = 'torcs'
 
     sess = tf.InteractiveSession()
@@ -147,7 +147,7 @@ def main():
                     actor_action : a_t[0],
                     reward : r_t,
                     state : s_t,
-                    img : i_t.reshape(1, 64, 64, 3)
+                    img : i_t.reshape(1, img_dim[0], img_dim[1], img_dim[2])
                 })
 
                 writer.add_summary(summary, step)

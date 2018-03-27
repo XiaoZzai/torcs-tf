@@ -25,7 +25,7 @@ def main():
         return
 
     state_dim = 4
-    img_dim = [64, 64, 3]
+    img_dim = [304, 412, 3]
     sess = tf.InteractiveSession()
     agent = Supervise(sess, state_dim, img_dim, models_dir)
     agent.load_network()
@@ -41,13 +41,14 @@ def main():
             ob = env.reset()
 
         s_t = np.hstack((ob.speedX, ob.speedY, ob.speedZ, 0.0))
-        i_t = ob.img / 255.0
+        i_t = ob.img
+        # print(i_t)
 
         while step < MAX_STEP:
             action = agent.action(s_t, i_t)
             ob, reward, done, info = env.step([action, 0.16, 0])
             s_t = np.hstack((ob.speedX, ob.speedY, ob.speedZ, action))
-            i_t = ob.img / 255.0
+            i_t = ob.img
 
             print("Step", step, "Action", action, "Reward", reward)
             if done == True:

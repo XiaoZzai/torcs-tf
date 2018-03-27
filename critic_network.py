@@ -52,25 +52,25 @@ class CriticNetwork:
             # 60*60*16
             img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, img_w1, [1, 1, 1, 1], "VALID") + img_b1)
             # 30*30*16
-            img_layer2 = tf.nn.max_pool(img_layer1, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
+            img_layer2 = tf.nn.max_pool(img_layer1, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
 
             img_w2 = tf.Variable(tf.random_uniform(([5, 5, 16, 32]), -1e-4, 1e-4))
             img_b2 = tf.Variable(tf.random_uniform([32], 1e-4, 1e-4))
             # 26*26*32
             img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, img_w2, [1, 1, 1, 1], "VALID") + img_b2)
             # 13*13*32
-            img_layer4 = tf.nn.max_pool(img_layer3, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
+            img_layer4 = tf.nn.max_pool(img_layer3, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
 
-            img_w3 = tf.Variable(tf.random_uniform(([4, 4, 32, 64]), -1e-4, 1e-4))
+            img_w3 = tf.Variable(tf.random_uniform(([3, 3, 32, 64]), -1e-4, 1e-4))
             img_b3 = tf.Variable(tf.random_uniform([64], 1e-4, 1e-4))
             # 10*10*64
             img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, img_w3, [1, 1, 1, 1], "VALID") + img_b3)
             # 5*5*64
-            img_layer6 = tf.nn.max_pool(img_layer5, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
+            img_layer6 = tf.nn.max_pool(img_layer5, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
+            flatten = int(img_layer6.shape[1] * img_layer6.shape[2] * img_layer6.shape[3])
+            img_layer7 = tf.reshape(img_layer6, [-1, flatten])
 
-            img_layer7 = tf.reshape(img_layer6, [-1, 5*5*64])
-
-            img_w4 = tf.Variable(tf.random_uniform([5*5*64, layer1_size], -1e-4, 1e-4))
+            img_w4 = tf.Variable(tf.random_uniform([flatten, layer1_size], -1e-4, 1e-4))
             img_b4 = tf.Variable(tf.random_uniform([layer1_size], -1e-4, 1e-4))
 
             img_layer8 = tf.nn.relu(tf.matmul(img_layer7, img_w4) + img_b4)
@@ -81,8 +81,8 @@ class CriticNetwork:
         state_w1 = self.variable([state_dim, layer1_size], state_dim)
         state_b1 = self.variable([layer1_size], state_dim)
 
-        state_w2 = self.variable([layer1_size, layer2_size], layer1_size + action_dim)
-        action_w2 = self.variable([action_dim, layer2_size], layer1_size + action_dim)
+        state_w2 = self.variable([layer1_size * 2, layer2_size], layer1_size * 2)
+        action_w2 = self.variable([action_dim, layer2_size], action_dim)
         b2 = self.variable([layer2_size], layer1_size + action_dim)
 
         w3 = tf.Variable(tf.random_uniform([layer2_size, 1], -3e-3, 3e-3))
@@ -90,7 +90,7 @@ class CriticNetwork:
 
         layer1 = tf.nn.relu(tf.matmul(state_input, state_w1) + state_b1)
         if img_dim is not None:
-            layer2 = tf.add(layer1, img_layer8)
+            layer2 = tf.concat([layer1, img_layer8], 1)
         else:
             layer2 = layer1
         layer3 = tf.nn.relu(tf.matmul(layer2, state_w2) + tf.matmul(action_input, action_w2) + b2)
@@ -115,17 +115,18 @@ class CriticNetwork:
         if img_dim is not None:
             img_input = tf.placeholder(dtype=tf.float32, shape=[None, img_dim[0], img_dim[1], img_dim[2]])
             img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, net[7], [1, 1, 1, 1], "VALID") + net[8])
-            img_layer2 = tf.nn.max_pool(img_layer1, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
+            img_layer2 = tf.nn.max_pool(img_layer1, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
             img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, net[9], [1, 1, 1, 1], "VALID") + net[10])
-            img_layer4 = tf.nn.max_pool(img_layer3, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
+            img_layer4 = tf.nn.max_pool(img_layer3, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
             img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, net[11], [1, 1, 1, 1], "VALID") + net[12])
-            img_layer6 = tf.nn.max_pool(img_layer5, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
-            img_layer7 = tf.reshape(img_layer6, [-1, 5*5*64])
+            img_layer6 = tf.nn.max_pool(img_layer5, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
+            flatten = int(img_layer6.shape[1] * img_layer6.shape[2] * img_layer6.shape[3])
+            img_layer7 = tf.reshape(img_layer6, [-1, flatten])
             img_layer8 = tf.nn.relu(tf.matmul(img_layer7, net[13]) + net[14])
 
         layer1 = tf.nn.relu(tf.matmul(state_input, target_net[0]) + target_net[1])
         if img_dim is not None:
-            layer2 = tf.add(layer1, img_layer8)
+            layer2 = tf.concat([layer1, img_layer8], 1)
         else:
             layer2 = layer1
         layer3 = tf.nn.relu(tf.matmul(layer2, target_net[2]) + tf.matmul(action_input, target_net[3]) + target_net[4])
@@ -180,7 +181,7 @@ class CriticNetwork:
         return self.sess.run(self.q_value_output, feed_dict=dicts)
 
     # f fan-in size
-    def variable(self,shape,f):
+    def variable(self, shape, f):
         return tf.Variable(tf.random_uniform(shape, -1/math.sqrt(f), 1/math.sqrt(f)))
 
     '''

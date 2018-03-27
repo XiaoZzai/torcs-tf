@@ -48,24 +48,25 @@ class ActorNetwork:
             # 60*60*16
             img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, img_w1, [1, 1, 1, 1], "VALID") + img_b1)
             # 30*30*16
-            img_layer2 = tf.nn.max_pool(img_layer1, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
+            img_layer2 = tf.nn.max_pool(img_layer1, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
             img_w2 = tf.Variable(tf.random_uniform(([5, 5, 16, 32]), -1e-4, 1e-4))
             img_b2 = tf.Variable(tf.random_uniform([32], 1e-4, 1e-4))
             # 26*26*32
             img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, img_w2, [1, 1, 1, 1], "VALID") + img_b2)
             # 13*13*32
-            img_layer4 = tf.nn.max_pool(img_layer3, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
+            img_layer4 = tf.nn.max_pool(img_layer3, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
 
-            img_w3 = tf.Variable(tf.random_uniform(([4, 4, 32, 64]), -1e-4, 1e-4))
+            img_w3 = tf.Variable(tf.random_uniform(([3, 3, 32, 64]), -1e-4, 1e-4))
             img_b3 = tf.Variable(tf.random_uniform([64], 1e-4, 1e-4))
             # 10*10*64
             img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, img_w3, [1, 1, 1, 1], "VALID") + img_b3)
             # 5*5*64
-            img_layer6 = tf.nn.max_pool(img_layer5, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
+            img_layer6 = tf.nn.max_pool(img_layer5, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
 
-            img_layer7 = tf.reshape(img_layer6, [-1, 5*5*64])
+            flatten = int(img_layer6.shape[1] * img_layer6.shape[2] * img_layer6.shape[3])
+            img_layer7 = tf.reshape(img_layer6, [-1, flatten])
 
-            img_w4 = tf.Variable(tf.random_uniform([5*5*64, layer1_size], -1e-4, 1e-4))
+            img_w4 = tf.Variable(tf.random_uniform([flatten, layer1_size], -1e-4, 1e-4))
             img_b4 = tf.Variable(tf.random_uniform([layer1_size], -1e-4, 1e-4))
             img_layer8 = tf.nn.relu(tf.matmul(img_layer7, img_w4) + img_b4)
 
@@ -77,12 +78,12 @@ class ActorNetwork:
         layer1 = tf.nn.relu(tf.matmul(state_input, state_w1) + state_b1)
 
         if img_dim is not None:
-            layer2 = tf.add(img_layer8, layer1)
+            layer2 = tf.concat([img_layer8, layer1], 1)
         else:
             layer2 = layer1
 
-        state_w2 = self.variable([layer1_size, layer2_size], layer1_size)
-        state_b2 = self.variable([layer2_size], layer1_size)
+        state_w2 = self.variable([layer1_size * 2, layer2_size], layer1_size * 2)
+        state_b2 = self.variable([layer2_size], layer1_size * 2)
         layer3 = tf.nn.relu(tf.matmul(layer2, state_w2) + state_b2)
 
         steer_w = tf.Variable(tf.random_uniform([layer2_size, 1], -1e-4, 1e-4))
@@ -115,17 +116,18 @@ class ActorNetwork:
         if img_dim is not None:
             img_input = tf.placeholder(dtype=tf.float32, shape=[None, img_dim[0], img_dim[1], img_dim[2]])
             img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, net[6], [1, 1, 1, 1], "VALID") + net[7])
-            img_layer2 = tf.nn.max_pool(img_layer1, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
+            img_layer2 = tf.nn.max_pool(img_layer1, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
             img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, net[8], [1, 1, 1, 1], "VALID") + net[9])
-            img_layer4 = tf.nn.max_pool(img_layer3, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
+            img_layer4 = tf.nn.max_pool(img_layer3, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
             img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, net[10], [1, 1, 1, 1], "VALID") + net[11])
-            img_layer6 = tf.nn.max_pool(img_layer5, [1, 2, 2, 1], [1, 2, 2, 1], "VALID")
-            img_layer7 = tf.reshape(img_layer6, [-1, 5*5*64])
+            img_layer6 = tf.nn.max_pool(img_layer5, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
+            flatten = int(img_layer6.shape[1] * img_layer6.shape[2] * img_layer6.shape[3])
+            img_layer7 = tf.reshape(img_layer6, [-1, flatten])
             img_layer8 = tf.nn.relu(tf.matmul(img_layer7, net[12]) + net[13])
 
         layer1 = tf.nn.relu(tf.matmul(state_input, target_net[0]) + target_net[1])
         if img_dim is not None:
-            layer2 = tf.add(img_layer8, layer1)
+            layer2 = tf.concat([img_layer8, layer1], 1)
         else:
             layer2 = layer1
 
@@ -171,6 +173,8 @@ class ActorNetwork:
         return self.sess.run(self.action_output, feed_dict=dicts)[0]
 
     def target_actions(self, state_batch, img_batch=None):
+        print(state_batch.dtype)
+        print(self.state_input)
         dicts = {self.state_input : state_batch}
 
         if self.img_dim is not None:

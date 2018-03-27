@@ -3,7 +3,8 @@ import os
 import time
 import tensorflow as tf
 import traceback
-import cv2
+import matplotlib.pyplot as plt
+
 np.random.seed(2018)
 
 from gym_torcs import TorcsEnv
@@ -41,7 +42,7 @@ def main():
     env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=collect_track_no, random_track=False, track_range=(0, 3))
 
     print("Collecting Start.")
-    max_data_entry_count = 10000
+    max_data_entry_count = 2000
     data_entry_count = 0
     start_time = time.time()
     i = 0
@@ -67,10 +68,11 @@ def main():
                                   ob.wheelSpinVel/100.0, ob.rpm, a_t[0]))
 
                 image = ob.img
-                # print(image)
                 if step > 20:
-                    cv2.imwrite(datas_dir + ("%d-%d.jpg" % (collect_track_no, data_entry_count)), image)
-                    file.write("%f %f %f %f %f\n" % (ob.speedX, ob.speedY, ob.speedZ, pre_a_t, a_t[0]))
+                    plt.imsave(datas_dir + ("%d-%d.jpg" % (collect_track_no, data_entry_count)), image)
+                    ret = file.write("%f %f %f %f %f\n" % (ob.speedX, ob.speedY, ob.speedZ, pre_a_t, a_t[0]))
+                    if ret == 0:
+                        print("File Write error")
                     data_entry_count += 1
 
                 s_t = s_t1

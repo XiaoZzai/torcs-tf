@@ -5,6 +5,7 @@ import copy
 import collections as col
 import os
 import time
+import matplotlib.pyplot as plt
 import cv2
 
 class TorcsEnv:
@@ -232,6 +233,7 @@ class TorcsEnv:
         return self.get_obs()
 
     def end(self):
+        os.system("rm .tmp.png")
         os.system('pkill torcs')
 
     def get_obs(self):
@@ -313,8 +315,11 @@ class TorcsEnv:
             Observation = col.namedtuple('Observaion', names)
 
             # Get RGB from observation
-            image_rgb = self.obs_vision_to_image_rgb(raw_obs[names[10]])
-            image_rgb = cv2.flip(image_rgb, 0)
+            # image_rgb = self.obs_vision_to_image_rgb(raw_obs[names[10]])
+            # image_rgb = cv2.flip(image_rgb, 0) / 255.0
+            os.system("scrot -u .tmp.png")
+            image_rgb = plt.imread(".tmp.png")
+            # print(image_rgb)
 
             return Observation(focus=np.array(raw_obs['focus'], dtype=np.float32)/200.,
                                speedX=np.array(raw_obs['speedX'], dtype=np.float32)/self.default_speed,
