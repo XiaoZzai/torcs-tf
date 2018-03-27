@@ -11,14 +11,14 @@ from ReplayBuffer import ReplayBuffer
 
 # Hyper Parameters:
 
-REPLAY_BUFFER_SIZE = 20000
+REPLAY_BUFFER_SIZE = 100000
 REPLAY_START_SIZE = 100
 BATCH_SIZE = 32
 GAMMA = 0.99
 
 
 class ddpg:
-    def __init__(self, env_name, sess, state_dim, action_dim, models_dir, img_dim=None):
+    def __init__(self, env_name, sess, state_dim, action_dim, models_dir, img_dim):
         self.name = 'DDPG'
         self.env_name = env_name
         self.state_dim = state_dim
@@ -80,7 +80,6 @@ class ddpg:
 
     def load_network(self):
         checkpoint = tf.train.get_checkpoint_state(self.models_dir)
-        # self.saver.restore(self.sess, self.experiment_dir + 'torcsnetwork-ddpg-best-reward-20000')
         if checkpoint and checkpoint.model_checkpoint_path:
             self.saver.restore(self.sess, checkpoint.model_checkpoint_path)
             print("Successfully loaded:", checkpoint.model_checkpoint_path)
@@ -117,7 +116,7 @@ class ddpg:
         return action[0]
     '''
 
-    def action(self, state, img=None):
+    def action(self, state, img):
         action = self.actor_network.action(state, img)
 
         action[0] = np.clip( action[0], -1 , 1 )
@@ -126,14 +125,19 @@ class ddpg:
 
         return action
 
-    def noise_action(self, state, epsilon, img=None):
+    def noise_action(self, state, epsilon, img):
         # Select action a_t according to the current policy and exploration noise
         action = self.actor_network.action(state, img)
         noise_t = np.zeros(self.action_dim)
-        noise_t[0] = epsilon * ornstein_uhlenbeck_process(action[0],  0.0 , 0.60, 0.80)
-        # noise_t[1] = epsilon * ornstein_uhlenbeck_process(action[1],  0.5 , 1.00, 0.10)
-        # noise_t[2] = epsilon * ornstein_uhlenbeck_process(action[2], -0.1 , 1.00, 0.05)
-        
+
+        if self.time_step < 100000:
+            noise_t[0] = epsilon * ornstein_uhlenbeck_process(action[0],  0.0 , 0.60, 0.80)
+            # noise_t[1] = epsilon * ornstein_uhlenbeck_process(action[1],  0.5 , 1.00, 0.10)
+            # noise_t[2] = epsilon * ornstein_uhlenbeck_process(action[2], -0.1 , 1.00, 0.05)
+        elif self.time_step < 200000:
+            if np.random.random() < 0.1:
+                noise_t[0] = 0.1 * ornstein_uhlenbeck_process(action[0],  0.0 , 0.60, 0.80)
+
         action = action + noise_t
         action[0] = np.clip( action[0], -1 , 1)
         # action[1] = np.clip( action[1], 0 , 1)
@@ -141,7 +145,7 @@ class ddpg:
 
         return action
     
-    def perceive(self, state, action, reward, next_state, done, img=None, next_img=None):
+    def perceive(self, state, action, reward, next_state, done, img, next_img):
         if not (math.isnan(reward)):
             self.replay_buffer.add(state, action, reward, next_state, done, img, next_img)
         self.time_step =  self.time_step + 1
