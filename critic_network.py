@@ -91,16 +91,16 @@ class CriticNetwork:
         target_net = [ema.average(x) for x in net]
 
         img_input = tf.placeholder(dtype=tf.float32, shape=[None, img_dim[0], img_dim[1], img_dim[2]])
-        img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, net[7], [1, 1, 1, 1], "VALID") + net[8])
+        img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, target_net[7], [1, 1, 1, 1], "VALID") + target_net[8])
         img_layer2 = tf.nn.max_pool(img_layer1, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
-        img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, net[9], [1, 1, 1, 1], "VALID") + net[10])
+        img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, target_net[9], [1, 1, 1, 1], "VALID") + target_net[10])
         img_layer4 = tf.nn.max_pool(img_layer3, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
-        img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, net[11], [1, 1, 1, 1], "VALID") + net[12])
+        img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, target_net[11], [1, 1, 1, 1], "VALID") + target_net[12])
         img_layer6 = tf.nn.max_pool(img_layer5, [1, 3, 3, 1], [1, 3, 3, 1], "VALID")
         flatten = int(img_layer6.shape[1] * img_layer6.shape[2] * img_layer6.shape[3])
         img_layer7 = tf.reshape(img_layer6, [-1, flatten])
 
-        img_layer8 = tf.nn.relu(tf.matmul(img_layer7, net[13]) + net[14])
+        img_layer8 = tf.nn.relu(tf.matmul(img_layer7, target_net[13]) + target_net[14])
 
         layer1 = tf.nn.relu(tf.matmul(state_input, target_net[0]) + target_net[1])
         layer2 = tf.concat([layer1, img_layer8], 1)
