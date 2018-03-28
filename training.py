@@ -2,6 +2,7 @@ import numpy as np
 import os
 import time
 import tensorflow as tf
+import matplotlib.pyplot as plt
 import traceback
 import cv2
 np.random.seed(2018)
@@ -23,7 +24,7 @@ def main():
     epsilon   = epsilon_start
 
     # Creating necessary directories
-    experiment_name = "img-0"
+    experiment_name = "img-1"
     experiment_dir  = "experiment-%s/" % experiment_name
     models_dir = experiment_dir + "model/"
     logs_train_dir = experiment_dir + "logs-train/"
@@ -34,8 +35,9 @@ def main():
     if os.path.exists(models_dir) == False:
         os.mkdir(models_dir)
 
-    description = 'Using raw pixels as input, output (steer)' + '\n' + \
+    description = 'Only using raw pixels as input, output (steer)' + '\n' + \
                     'Training from scratch' + '\n\n' \
+                    'Img dim = [64, 64, 12]' + '\n\n' \
                     'throttle = 0.16' + '\n\n' \
                     'brake = 0' + '\n\n' \
                     'sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs["trackPos"])  \
@@ -49,12 +51,11 @@ def main():
         file.write(formatted_timestamp())
 
     action_dim = 1
-    state_dim  = 4
-    img_dim = [304, 412, 3]
+    img_dim = [64, 64, 12]
     env_name   = 'torcs'
 
     sess = tf.InteractiveSession()
-    agent = ddpg(env_name, sess, state_dim, action_dim, models_dir, img_dim)
+    agent = ddpg(env_name, sess, action_dim, models_dir, img_dim)
     agent.load_network()
 
     vision = True
@@ -70,13 +71,11 @@ def main():
         critic_cost = tf.placeholder(dtype=tf.float32)
         actor_action = tf.placeholder(dtype=tf.float32)
         reward = tf.placeholder(dtype=tf.float32)
-        state = tf.placeholder(dtype=tf.float32, shape=(state_dim, ))
         img = tf.placeholder(dtype=tf.float32, shape=(1, img_dim[0], img_dim[1], img_dim[2]))
         tf.summary.scalar("critic_cost", critic_cost)
         tf.summary.scalar('actor_action', actor_action)
         tf.summary.scalar('reward', reward)
-        tf.summary.histogram('state', state)
-        tf.summary.image("img", img)
+        # tf.summary.image("img", img)
         merged_summary = tf.summary.merge_all()
 
     writer = tf.summary.FileWriter(logs_train_dir, sess.graph)
@@ -112,8 +111,8 @@ def main():
 
             # s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
             #                  0.0))
-            s_t = np.hstack((ob.speedX, ob.speedY, ob.speedZ, 0.0))
-            i_t = ob.img
+            # s_t = np.hstack((ob.speedX, ob.speedY, ob.speedZ, 0.0))
+            i_t = np.concatenate((ob.img, ob.img, ob.img, ob.img), axis=2)
             # cv2.imshow("img", ob.img)
             # cv2.waitKey(0)
             # x_t = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
@@ -125,7 +124,7 @@ def main():
                 # Take noisy actions during training
                 epsilon -= 1.0 / EXPLORE
                 epsilon = max(epsilon, 0.0)
-                a_t = agent.noise_action(s_t, epsilon, i_t)
+                a_t = agent.noise_action(epsilon, i_t)
 
                 #ob, r_t, done, info = env.step(a_t[0], early_stop)
 
@@ -134,26 +133,25 @@ def main():
                 # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
                 #                   a_t[0]))
 
-                s_t1 = np.hstack((ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
-                i_t1 = ob.img
+                # s_t1 = np.hstack((ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
+                i_t1 = np.concatenate([i_t[:, :, 3:], ob.img], axis=2)
 
                 # x_t1 = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
                 # s_t1 = np.hstack((np.roll(s_t, -6)[:18], x_t1))
                 # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
 
-                cost = agent.perceive(s_t, a_t, r_t, s_t1, done, i_t, i_t1)
+                cost = agent.perceive(i_t, a_t, r_t, i_t1, done)
                 summary = sess.run(merged_summary, feed_dict={
                     critic_cost : cost,
                     actor_action : a_t[0],
                     reward : r_t,
-                    state : s_t,
-                    img : i_t.reshape(1, img_dim[0], img_dim[1], img_dim[2])
+                    # img : i_t.reshape(1, img_dim[0], img_dim[1], img_dim[2])
                 })
 
                 writer.add_summary(summary, step)
 
                 total_reward += r_t
-                s_t = s_t1
+                # s_t = s_t1
                 i_t = i_t1
 
                 print("Ep", i, "Total steps", step, "Reward", r_t, " Actions ", a_t, " Epsilon ", epsilon, "Step ep", step_ep)

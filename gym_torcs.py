@@ -315,10 +315,10 @@ class TorcsEnv:
             Observation = col.namedtuple('Observaion', names)
 
             # Get RGB from observation
-            # image_rgb = self.obs_vision_to_image_rgb(raw_obs[names[10]])
-            # image_rgb = cv2.flip(image_rgb, 0) / 255.0
-            os.system("scrot -u .tmp.png")
-            image_rgb = plt.imread(".tmp.png")
+            image_rgb = self.obs_vision_to_image_rgb(raw_obs[names[10]])
+            image_rgb = cv2.flip(image_rgb, 0) / 255.0
+            # os.system("scrot -u .tmp.png")
+            # image_rgb = plt.imread(".tmp.png")
             # print(image_rgb)
 
             return Observation(focus=np.array(raw_obs['focus'], dtype=np.float32)/200.,
