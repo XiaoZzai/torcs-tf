@@ -24,7 +24,7 @@ def main():
     epsilon   = epsilon_start
 
     # Creating necessary directories
-    experiment_name = "img-1"
+    experiment_name = "img-2"
     experiment_dir  = "experiment-%s/" % experiment_name
     models_dir = experiment_dir + "model/"
     logs_train_dir = experiment_dir + "logs-train/"
@@ -56,7 +56,7 @@ def main():
 
     sess = tf.InteractiveSession()
     agent = ddpg(env_name, sess, action_dim, models_dir, img_dim)
-    agent.load_network()
+    # agent.load_network()
 
     vision = True
     env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=5, random_track=False, track_range=(5, 8))
@@ -109,8 +109,8 @@ def main():
             #     early_stop = 0
             print(("Episode : " + str(i) + " Replay Buffer " + str(agent.replay_buffer.count())))
 
-            # s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
-            #                  0.0))
+            s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
+                             0.0))
             # s_t = np.hstack((ob.speedX, ob.speedY, ob.speedZ, 0.0))
             i_t = np.concatenate((ob.img, ob.img, ob.img, ob.img), axis=2)
             # cv2.imshow("img", ob.img)
@@ -124,14 +124,14 @@ def main():
                 # Take noisy actions during training
                 epsilon -= 1.0 / EXPLORE
                 epsilon = max(epsilon, 0.0)
-                a_t = agent.noise_action(epsilon, i_t)
+                a_t = agent.noise_action(s_t, epsilon, i_t)
 
                 #ob, r_t, done, info = env.step(a_t[0], early_stop)
 
                 ob, r_t, done, info = env.step([a_t[0], 0.16, 0])
 
-                # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
-                #                   a_t[0]))
+                s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
+                                  a_t[0]))
 
                 # s_t1 = np.hstack((ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
                 i_t1 = np.concatenate([i_t[:, :, 3:], ob.img], axis=2)

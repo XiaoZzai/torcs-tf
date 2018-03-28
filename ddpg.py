@@ -8,10 +8,11 @@ import math
 from critic_network import CriticNetwork 
 from actor_network import ActorNetwork
 from ReplayBuffer import ReplayBuffer
+import guide_ddpg
 
 # Hyper Parameters:
 
-REPLAY_BUFFER_SIZE = 40000
+REPLAY_BUFFER_SIZE = 50000
 REPLAY_START_SIZE = 100
 BATCH_SIZE = 32
 GAMMA = 0.99
@@ -19,6 +20,10 @@ GAMMA = 0.99
 
 class ddpg:
     def __init__(self, env_name, sess, action_dim, models_dir, img_dim):
+
+        self.guider = guide_ddpg.ddpg('torcs', tf.InteractiveSession(), 30, 1, "experiment-tensorboard-4/model/")
+        self.guider.load_network()
+
         self.name = 'DDPG'
         self.env_name = env_name
         self.action_dim = action_dim
@@ -36,6 +41,7 @@ class ddpg:
         self.replay_buffer = ReplayBuffer(REPLAY_BUFFER_SIZE)
         
         self.saver = tf.train.Saver()
+
 
     def train(self):
         minibatch = self.replay_buffer.getBatch(BATCH_SIZE)
@@ -92,24 +98,24 @@ class ddpg:
 
         return action
 
-    def noise_action(self, epsilon, img):
-        # Select action a_t according to the current policy and exploration noise
-        action = self.actor_network.action(img)
-        noise_t = np.zeros(self.action_dim)
+    def noise_action(self, state, epsilon, img):
 
-        if epsilon > 0:
-            noise_t[0] = epsilon * ornstein_uhlenbeck_process(action[0],  0.0 , 0.60, 0.80)
-            # noise_t[1] = epsilon * ornstein_uhlenbeck_process(action[1],  0.5 , 1.00, 0.10)
-            # noise_t[2] = epsilon * ornstein_uhlenbeck_process(action[2], -0.1 , 1.00, 0.05)
-        elif self.time_step < 200000:
-            if np.random.random() < 0.1:
-                noise_t[0] = 0.1 * ornstein_uhlenbeck_process(action[0],  0.0 , 0.60, 0.80)
 
-        action = action + noise_t
-        action[0] = np.clip( action[0], -1 , 1)
-        # action[1] = np.clip( action[1], 0 , 1)
-        # action[2] = np.clip( action[2], 0 , 1)
-
+        # if (self.time_step > 200000) or ((self.time_step >= 15000) and (np.random.random() < 0.5 + (self.time_step / 400000.0))):
+        #
+        #     # Select action a_t according to the current policy and exploration noise
+        #     action = self.actor_network.action(img)
+        #     noise_t = np.zeros(self.action_dim)
+        #
+        #     noise_t[0] = 0.2 * ornstein_uhlenbeck_process(action[0],  0.0 , 0.60, 0.80)
+        #     # noise_t[1] = epsilon * ornstein_uhlenbeck_process(action[1],  0.5 , 1.00, 0.10)
+        #     # noise_t[2] = epsilon * ornstein_uhlenbeck_process(action[2], -0.1 , 1.00, 0.05)
+        #     action = action + noise_t
+        #     action[0] = np.clip( action[0], -1 , 1)
+        #     # action[1] = np.clip( action[1], 0 , 1)
+        #     # action[2] = np.clip( action[2], 0 , 1)
+        # else:
+        action = self.guider.action(state)
         return action
     
     def perceive(self, img, action, reward, next_img, done):

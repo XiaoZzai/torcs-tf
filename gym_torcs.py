@@ -233,7 +233,7 @@ class TorcsEnv:
         return self.get_obs()
 
     def end(self):
-        os.system("rm .tmp.png")
+        # os.system("rm .tmp.png")
         os.system('pkill torcs')
 
     def get_obs(self):
