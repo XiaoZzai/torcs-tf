@@ -1,0 +1,4 @@
+model_checkpoint_path: "torcs-network-ddpg.ckpt-30000"
+all_model_checkpoint_paths: "torcs-network-ddpg.ckpt-10000"
+all_model_checkpoint_paths: "torcs-network-ddpg.ckpt-20000"
+all_model_checkpoint_paths: "torcs-network-ddpg.ckpt-30000"

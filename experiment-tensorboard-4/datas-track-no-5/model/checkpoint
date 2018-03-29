@@ -1,0 +1,6 @@
+model_checkpoint_path: "torcs-network-supervise.ckpt-4999"
+all_model_checkpoint_paths: "torcs-network-supervise.ckpt-999"
+all_model_checkpoint_paths: "torcs-network-supervise.ckpt-1999"
+all_model_checkpoint_paths: "torcs-network-supervise.ckpt-2999"
+all_model_checkpoint_paths: "torcs-network-supervise.ckpt-3999"
+all_model_checkpoint_paths: "torcs-network-supervise.ckpt-4999"

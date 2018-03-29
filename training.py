@@ -5,6 +5,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import traceback
 import cv2
+import guide_ddpg
 np.random.seed(2018)
 
 from utils import formatted_timestamp
@@ -36,14 +37,14 @@ def main():
         os.mkdir(models_dir)
 
     description = 'Only using raw pixels as input, output (steer)' + '\n' + \
-                    'Training from scratch' + '\n\n' \
+                    'Training from scratch with a guider experiment-tensorboard-4' + '\n\n' \
                     'Img dim = [64, 64, 12]' + '\n\n' \
                     'throttle = 0.16' + '\n\n' \
                     'brake = 0' + '\n\n' \
                     'sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs["trackPos"])  \
                     - sp * np.abs(action_torcs["steer"]) * 4' + '\n\n' + \
                     'env = TorcsEnv(vision=False, throttle=True, text_mode=False, track_no=5, random_track=False, track_range=(5, 8))' + '\n\n' \
-                    'abs(trackPos) > 0.9 is out of track' + '\n\n' \
+                    'abs(trackPos) > 1 is out of track' + '\n\n' \
 
     with open(experiment_dir + "README.md", 'w') as file:
         file.write(description)
@@ -54,9 +55,12 @@ def main():
     img_dim = [64, 64, 12]
     env_name   = 'torcs'
 
+    guide_agent = guide_ddpg.ddpg('torcs', tf.InteractiveSession(), 30, 1, "experiment-tensorboard-4/model/")
+
     sess = tf.InteractiveSession()
     agent = ddpg(env_name, sess, action_dim, models_dir, img_dim)
-    # agent.load_network()
+    guide_agent.load_network()
+    agent.load_network()
 
     vision = True
     env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=5, random_track=False, track_range=(5, 8))
@@ -86,12 +90,6 @@ def main():
     step = 0
     try:
         while step < MAX_STEPS:
-            # if ((np.mod(i, 10) == 0 ) and (i>20)):
-            #     train_indicator= 0
-            # else:
-            #     train_indicator=is_training
-
-            # restart because of memory leak bug in torcs
             if np.mod(i, 3) == 0:
                 ob = env.reset(relaunch=True)
             else:
@@ -107,10 +105,10 @@ def main():
             #     early_stop = 1
             # else:
             #     early_stop = 0
-            print(("Episode : " + str(i) + " Replay Buffer " + str(agent.replay_buffer.count())))
+            # print(("Episode : " + str(i) + " Replay Buffer " + str(agent.replay_buffer.count())))
 
             s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
-                             0.0))
+                              0.0))
             # s_t = np.hstack((ob.speedX, ob.speedY, ob.speedZ, 0.0))
             i_t = np.concatenate((ob.img, ob.img, ob.img, ob.img), axis=2)
             # cv2.imshow("img", ob.img)
@@ -124,8 +122,10 @@ def main():
                 # Take noisy actions during training
                 epsilon -= 1.0 / EXPLORE
                 epsilon = max(epsilon, 0.0)
-                a_t = agent.noise_action(s_t, epsilon, i_t)
-
+                if (step < 15000) or (np.random.random() < 0.5 - (step / 15000.0)):
+                    a_t = guide_agent.action(s_t)
+                else:
+                    a_t = agent.noise_action(epsilon, i_t)
                 #ob, r_t, done, info = env.step(a_t[0], early_stop)
 
                 ob, r_t, done, info = env.step([a_t[0], 0.16, 0])
@@ -151,7 +151,7 @@ def main():
                 writer.add_summary(summary, step)
 
                 total_reward += r_t
-                # s_t = s_t1
+                s_t = s_t1
                 i_t = i_t1
 
                 print("Ep", i, "Total steps", step, "Reward", r_t, " Actions ", a_t, " Epsilon ", epsilon, "Step ep", step_ep)
@@ -161,12 +161,13 @@ def main():
                 step += 1
                 step_ep += 1
 
-                if done:
-                    break
 
                 if np.mod(step + 1, 10000) == 0:
                         print("Now we save model with step = ", step)
                         agent.save_network(step + 1)
+
+                if done:
+                    break
 
             print(("TOTAL REWARD @ " + str(i) + "-th Episode  : Reward " + str(total_reward)))
             print(("Total Step: " + str(step)))

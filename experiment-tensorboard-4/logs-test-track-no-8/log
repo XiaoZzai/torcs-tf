@@ -1,0 +1,4 @@
+total_episode = 1
+max_steps_ep = 2000
+total_step = 1009
+total_time = 203.04676413536072 (s)

@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/r720/Driving/torcs-tf/data_collector.py", line 63, in main
+    ob, r_t, done, info = env.step([a_t[0], 0.16, 0])
+  File "/home/r720/Driving/torcs-tf/gym_torcs.py", line 131, in step
+    client.get_servers_input()
+  File "/home/r720/Driving/torcs-tf/snakeoil3_gym.py", line 258, in get_servers_input
+    sockdata,addr= self.so.recvfrom(data_size)
+KeyboardInterrupt

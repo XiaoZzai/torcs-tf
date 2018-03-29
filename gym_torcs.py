@@ -172,7 +172,7 @@ class TorcsEnv:
         #     episode_terminate = True
         #     client.R.d['meta'] = True
 
-        if abs(trackPos) > 0.9:  # Episode is terminated if the car is out of track
+        if abs(trackPos) > 1:  # Episode is terminated if the car is out of track
             print("Out of track")
             reward = -200
             episode_terminate = True

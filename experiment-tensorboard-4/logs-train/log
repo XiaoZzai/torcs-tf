@@ -1,0 +1,5 @@
+epsilon_start = 1
+total_explore = 20000
+total_episode = 101
+total_step = 30000
+total_time = 6320.86105966568 (s)

@@ -5,6 +5,7 @@ import tensorflow as tf
 import traceback
 np.random.seed(2018)
 
+import guide_ddpg
 from gym_torcs import TorcsEnv
 from ddpg import ddpg
 
@@ -14,8 +15,8 @@ def main():
     MAX_STEPS_EP = 2000
 
     # Creating necessary directories
-    test_track_no = 6
-    experiment_name = "tensorboard-11"
+    test_track_no = 5
+    experiment_name = "tensorboard-4"
     experiment_dir  = "experiment-%s/" % experiment_name
     models_dir = experiment_dir + "model/"
     logs_test_dir = experiment_dir + "logs-test-track-no-%d/" % test_track_no
@@ -29,14 +30,15 @@ def main():
         return
 
     if os.path.exists(logs_test_dir) == False:
+
         os.mkdir(logs_test_dir)
 
     action_dim = 1
-    state_dim  = 25
+    state_dim  = 30
     env_name   = 'torcs'
 
     sess = tf.InteractiveSession()
-    agent = ddpg(env_name, sess, state_dim, action_dim, models_dir)
+    agent = guide_ddpg.ddpg(env_name, sess, state_dim, action_dim, models_dir)
     agent.load_network()
 
     vision = False
@@ -69,9 +71,9 @@ def main():
 
             print(("Episode : " + str(i) + " Replay Buffer " + str(agent.replay_buffer.count())))
 
-            # s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
-            #                  0.0))
-            s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
+            s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
+                              0.0))
+            # s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
 
             # x_t = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
             # s_t = np.hstack((x_t, x_t, x_t, x_t))
@@ -83,9 +85,9 @@ def main():
             while (step_ep < MAX_STEPS_EP):
                 a_t = agent.action(s_t)
                 ob, r_t, done, info = env.step([a_t[0], 0.16, 0])
-                # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
-                #                   a_t[0]))
-                s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
+                s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
+                                   a_t[0]))
+                #s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
 
                 # x_t1 = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
                 # s_t1 = np.hstack((np.roll(s_t, -6)[:18], x_t1))
