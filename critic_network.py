@@ -3,12 +3,13 @@ import tensorflow as tf
 import numpy as np
 import math
 
-
-LAYER1_SIZE = 300
-LAYER2_SIZE = 600
-LEARNING_RATE = 1e-3
+# According to
+# According to original paper
+LAYER1_SIZE = 200
+LAYER2_SIZE = 200
+LEARNING_RATE = 1e-4
 TAU = 0.001
-L2 = 0.0001
+L2 = 0.01
 
 class CriticNetwork:
     def __init__(self, sess, action_dim, img_dim):
@@ -22,7 +23,7 @@ class CriticNetwork:
 
         self.create_training_method()
 
-        # initialization 
+        # initialization
         self.sess.run(tf.initialize_all_variables())
 
         self.update_target()
@@ -43,38 +44,42 @@ class CriticNetwork:
         # Image state input
         with tf.name_scope("critic_network"):
             img_input = tf.placeholder(dtype=tf.float32, shape=[None, img_dim[0], img_dim[1], img_dim[2]], name="img_input")
-            img_w1 = tf.Variable(tf.random_uniform(([5, 5, 12, 16]), -1e-4, 1e-4), name="img_conv1_w")
-            img_b1 = tf.Variable(tf.random_uniform([16], 1e-4, 1e-4), name="img_conv1_b")
+            init_num = 1/math.sqrt(int(img_input.shape[1] * img_input.shape[2] * img_input.shape[3]))
+            img_w1 = tf.Variable(tf.random_uniform(([5, 5, 9, 32]), -init_num, init_num), name="img_conv1_w")
+            img_b1 = tf.Variable(tf.random_uniform([32], -init_num, init_num), name="img_conv1_b")
             img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, img_w1, [1, 1, 1, 1], "VALID") + img_b1, name="img_conv1")
-            img_layer2 = tf.nn.max_pool(img_layer1, [1, 2, 2, 1], [1, 2, 2, 1], "VALID", name="img_maxpool1")
-            img_w2 = tf.Variable(tf.random_uniform(([5, 5, 16, 32]), -1e-4, 1e-4), name="img_conv2_w")
-            img_b2 = tf.Variable(tf.random_uniform([32], 1e-4, 1e-4), name="img_conv2_b")
-            img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, img_w2, [1, 1, 1, 1], "VALID") + img_b2, name="img_conv2")
-            img_layer4 = tf.nn.max_pool(img_layer3, [1, 2, 2, 1], [1, 2, 2, 1], "VALID", name="img_maxpool2")
-            img_w3 = tf.Variable(tf.random_uniform(([4, 4, 32, 32]), -1e-4, 1e-4), name="img_conv3_w")
+
+            init_num = 1 / math.sqrt(int(img_layer1.shape[1] * img_layer1.shape[2] * img_layer1.shape[3]))
+            img_w2 = tf.Variable(tf.random_uniform(([5, 5, 32, 32]), -init_num, init_num), name="img_conv2_w")
+            img_b2 = tf.Variable(tf.random_uniform([32], -init_num, init_num), name="img_conv2_b")
+            img_layer2 = tf.nn.relu(tf.nn.conv2d(img_layer1, img_w2, [1, 1, 1, 1], "VALID") + img_b2, name="img_conv2")
+
+            init_num = 1 / math.sqrt(int(img_layer2.shape[1] * img_layer2.shape[2] * img_layer2.shape[3]))
+            img_w3 = tf.Variable(tf.random_uniform(([3, 3, 32, 32]), -init_num, init_num), name="img_conv3_w")
             img_b3 = tf.Variable(tf.random_uniform([32], 1e-4, 1e-4), name="img_conv3_b")
-            img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, img_w3, [1, 1, 1, 1], "VALID") + img_b3, name="img_conv3")
-            img_layer6 = tf.nn.max_pool(img_layer5, [1, 2, 2, 1], [1, 2, 2, 1], "VALID", name="img_maxpool3")
-            flatten = int(img_layer6.shape[1] * img_layer6.shape[2] * img_layer6.shape[3])
-            img_layer7 = tf.reshape(img_layer6, [-1, flatten], name="img_flatten")
-            img_w4 = tf.Variable(tf.random_uniform([flatten, layer1_size], -1e-4, 1e-4), name="img_fc1_w")
-            img_b4 = tf.Variable(tf.random_uniform([layer1_size], -1e-4, 1e-4), name="img_fc1_b")
-            img_layer8 = tf.nn.relu(tf.matmul(img_layer7, img_w4) + img_b4, name="img_fc1")
+            img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, img_w3, [1, 1, 1, 1], "VALID") + img_b3, name="img_conv3")
+
+            flatten = int(img_layer3.shape[1] * img_layer3.shape[2] * img_layer3.shape[3])
+            img_layer4 = tf.reshape(img_layer3, [-1, flatten], name="img_flatten")
+            init_num = 1 / math.sqrt(flatten)
+            img_w4 = tf.Variable(tf.random_uniform([flatten, layer1_size], -init_num, init_num), name="img_fc1_w")
+            img_b4 = tf.Variable(tf.random_uniform([layer1_size], -init_num, init_num), name="img_fc1_b")
+            img_layer5 = tf.nn.relu(tf.matmul(img_layer4, img_w4) + img_b4, name="img_fc1")
 
             action_input = tf.placeholder(dtype=tf.float32, shape=[None, action_dim], name="action_input")
 
-            img_w5 = tf.Variable(tf.random_uniform([layer1_size, layer2_size], -1e-4, 1e-4), name="common_fc1_img_w")
-            action_w = self.variable([action_dim, layer2_size], action_dim, name="common_fc1_action_w")
-            b = self.variable([layer2_size], layer1_size, name="common_fc1_b")
+            layer1 = tf.concat([img_layer5, action_input], 1, name="concat")
+            init_num = 1 / math.sqrt(layer1_size + action_dim)
+            w = tf.Variable(tf.random_uniform([layer1_size + action_dim, layer2_size], -init_num, init_num), name="common_w")
+            b = tf.Variable(tf.random_uniform([layer2_size], -init_num, init_num), name="common_b")
+            layer2 = tf.nn.relu(tf.matmul(layer1, w) + b, name="fc1")
 
-            layer = tf.nn.relu(tf.matmul(img_layer8, img_w5) + tf.matmul(action_input, action_w) + b, name="common_fc1")
-
-            q_w = tf.Variable(tf.random_uniform([layer2_size, 1], -3e-3, 3e-3), name="q_value_w")
-            q_b = tf.Variable(tf.random_uniform([1], -3e-3, 3e-3), name="q_value_b")
-            q_value_output = tf.identity(tf.matmul(layer, q_w) + q_b, name="q_value")
+            q_w = tf.Variable(tf.random_uniform([layer2_size, 1], -3e-4, 3e-4), name="q_value_w")
+            q_b = tf.Variable(tf.random_uniform([1], -3e-4, 3e-4), name="q_value_b")
+            q_value_output = tf.identity(tf.matmul(layer2, q_w) + q_b, name="q_value")
 
         return img_input, action_input, q_value_output, \
-               [img_w1, img_b1, img_w2, img_b2, img_w3, img_b3, img_w4, img_b4, img_w5, action_w, b, q_w, q_b]
+               [img_w1, img_b1, img_w2, img_b2, img_w3, img_b3, img_w4, img_b4, w, b, q_w, q_b]
 
     def create_target_q_network(self, action_dim, net, img_dim):
 
@@ -84,19 +89,19 @@ class CriticNetwork:
             target_update = ema.apply(net) # real operation to update
             target_net = [ema.average(x) for x in net] # just get value of shadow_value
 
-            img_input = tf.placeholder(dtype=tf.float32, shape=[None, img_dim[0], img_dim[1], img_dim[2]], name="img_input")
-            action_input = tf.placeholder(dtype=tf.float32, shape=[None, action_dim], name="action_input")
+            img_input = tf.placeholder(dtype=tf.float32, shape=[None, img_dim[0], img_dim[1], img_dim[2]])
             img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, target_net[0], [1, 1, 1, 1], "VALID") + target_net[1], name="img_conv1")
-            img_layer2 = tf.nn.max_pool(img_layer1, [1, 2, 2, 1], [1, 2, 2, 1], "VALID", name="img_maxpool1")
-            img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, target_net[2], [1, 1, 1, 1], "VALID") + target_net[3], name="img_conv2")
-            img_layer4 = tf.nn.max_pool(img_layer3, [1, 2, 2, 1], [1, 2, 2, 1], "VALID", name="img_maxpool2")
-            img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, target_net[4], [1, 1, 1, 1], "VALID") + target_net[5], name="img_conv3")
-            img_layer6 = tf.nn.max_pool(img_layer5, [1, 2, 2, 1], [1, 2, 2, 1], "VALID", name="img_maxpool3")
-            flatten = int(img_layer6.shape[1] * img_layer6.shape[2] * img_layer6.shape[3])
-            img_layer7 = tf.reshape(img_layer6, [-1, flatten], name="img_flatten")
-            img_layer8 = tf.nn.relu(tf.matmul(img_layer7, target_net[6]) + target_net[7], name="img_fc1")
-            layer = tf.nn.relu(tf.matmul(img_layer8, target_net[8]) + tf.matmul(action_input, target_net[9]) + target_net[10], name="common_fc1")
-            q_value_output = tf.identity(tf.matmul(layer, target_net[11]) + target_net[12], name="q_value")
+            img_layer2 = tf.nn.relu(tf.nn.conv2d(img_layer1, target_net[2], [1, 1, 1, 1], "VALID") + target_net[3], name="img_conv2")
+            img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, target_net[4], [1, 1, 1, 1], "VALID") + target_net[5], name="img_conv3")
+            flatten = int(img_layer3.shape[1] * img_layer3.shape[2] * img_layer3.shape[3])
+            img_layer4 = tf.reshape(img_layer3, [-1, flatten], name="img_flatten")
+            img_layer5 = tf.nn.relu(tf.matmul(img_layer4, target_net[6]) + target_net[7], name="img_fc1")
+            action_input = tf.placeholder(dtype=tf.float32, shape=[None, action_dim], name="action_input")
+
+            layer1 = tf.concat([img_layer5, action_input], 1, name="concat")
+            layer2 = tf.nn.relu(tf.matmul(layer1, target_net[8]) + target_net[9], name="fc1")
+
+            q_value_output = tf.identity(tf.matmul(layer2, target_net[10]) + target_net[11], name="q_value")
 
         return img_input, action_input, q_value_output, target_update
 

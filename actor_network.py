@@ -2,9 +2,10 @@ import tensorflow as tf
 import math
 
 # Hyper Parameters
-LAYER1_SIZE = 300
-LAYER2_SIZE = 600
-LEARNING_RATE = 1e-4
+# According to original paper
+LAYER1_SIZE = 200
+LAYER2_SIZE = 200
+LEARNING_RATE = 1e-3
 TAU = 0.001
 BATCH_SIZE = 32
 
@@ -37,47 +38,40 @@ class ActorNetwork:
         layer1_size = LAYER1_SIZE
         layer2_size = LAYER2_SIZE
 
+        # tf.random_uniform(shape, -1 / math.sqrt(f), 1 / math.sqrt(f)
         with tf.name_scope("actor_network"):
             img_input = tf.placeholder(dtype=tf.float32, shape=[None, img_dim[0], img_dim[1], img_dim[2]], name="img_input")
-            img_w1 = tf.Variable(tf.random_uniform(([5, 5, 12, 16]), -1e-4, 1e-4), name="img_conv1_w")
-            img_b1 = tf.Variable(tf.random_uniform([16], 1e-4, 1e-4), name="img_conv1_b")
+            init_num = 1/math.sqrt(int(img_input.shape[1] * img_input.shape[2] * img_input.shape[3]))
+            img_w1 = tf.Variable(tf.random_uniform(([5, 5, 9, 32]), -init_num, init_num), name="img_conv1_w")
+            img_b1 = tf.Variable(tf.random_uniform([32], -init_num, init_num), name="img_conv1_b")
             img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, img_w1, [1, 1, 1, 1], "VALID") + img_b1, name="img_conv1")
-            img_layer2 = tf.nn.max_pool(img_layer1, [1, 2, 2, 1], [1, 2, 2, 1], "VALID", name="img_maxpool1")
 
-            img_w2 = tf.Variable(tf.random_uniform(([5, 5, 16, 32]), -1e-4, 1e-4), name="img_conv2_w")
-            img_b2 = tf.Variable(tf.random_uniform([32], 1e-4, 1e-4), name="img_conv2_b")
-            img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, img_w2, [1, 1, 1, 1], "VALID") + img_b2, name="img_conv2")
-            img_layer4 = tf.nn.max_pool(img_layer3, [1, 2, 2, 1], [1, 2, 2, 1], "VALID", name="img_maxpool2")
+            init_num = 1 / math.sqrt(int(img_layer1.shape[1] * img_layer1.shape[2] * img_layer1.shape[3]))
+            img_w2 = tf.Variable(tf.random_uniform(([5, 5, 32, 32]), -init_num, init_num), name="img_conv2_w")
+            img_b2 = tf.Variable(tf.random_uniform([32], -init_num, init_num), name="img_conv2_b")
+            img_layer2 = tf.nn.relu(tf.nn.conv2d(img_layer1, img_w2, [1, 1, 1, 1], "VALID") + img_b2, name="img_conv2")
 
-            img_w3 = tf.Variable(tf.random_uniform(([3, 3, 32, 32]), -1e-4, 1e-4), name="img_conv3_w")
+            init_num = 1 / math.sqrt(int(img_layer2.shape[1] * img_layer2.shape[2] * img_layer2.shape[3]))
+            img_w3 = tf.Variable(tf.random_uniform(([3, 3, 32, 32]), -init_num, init_num), name="img_conv3_w")
             img_b3 = tf.Variable(tf.random_uniform([32], 1e-4, 1e-4), name="img_conv3_b")
-            img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, img_w3, [1, 1, 1, 1], "VALID") + img_b3, name="img_conv3")
-            img_layer6 = tf.nn.max_pool(img_layer5, [1, 2, 2, 1], [1, 2, 2, 1], "VALID", name="img_maxpool3")
+            img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, img_w3, [1, 1, 1, 1], "VALID") + img_b3, name="img_conv3")
 
-            flatten = int(img_layer6.shape[1] * img_layer6.shape[2] * img_layer6.shape[3])
-            img_layer7 = tf.reshape(img_layer6, [-1, flatten], name="img_flatten")
+            flatten = int(img_layer3.shape[1] * img_layer3.shape[2] * img_layer3.shape[3])
+            img_layer4 = tf.reshape(img_layer3, [-1, flatten], name="img_flatten")
+            init_num = 1 / math.sqrt(flatten)
+            img_w4 = tf.Variable(tf.random_uniform([flatten, layer1_size], -init_num, init_num), name="img_fc1_w")
+            img_b4 = tf.Variable(tf.random_uniform([layer1_size], -init_num, init_num), name="img_fc1_b")
+            img_layer5 = tf.nn.relu(tf.matmul(img_layer4, img_w4) + img_b4, name="img_fc1")
 
-            img_w4 = tf.Variable(tf.random_uniform([flatten, layer1_size], -1e-4, 1e-4), name="img_fc1_w")
-            img_b4 = tf.Variable(tf.random_uniform([layer1_size], -1e-4, 1e-4), name="img_fc1_b")
-            img_layer8 = tf.nn.relu(tf.matmul(img_layer7, img_w4) + img_b4, name="img_fc1")
+            init_num = 1 / math.sqrt(layer1_size)
+            img_w5 = tf.Variable(tf.random_uniform([layer1_size, layer2_size], -init_num, init_num), name="img_fc2_w")
+            img_b5 = tf.Variable(tf.random_uniform([layer2_size], -init_num, init_num), name="img_fc2_b")
+            img_layer6 = tf.nn.relu(tf.matmul(img_layer5, img_w5) + img_b5, name="img_fc2")
 
-            img_w5 = tf.Variable(tf.random_uniform([layer1_size, layer2_size], -1e-4, 1e-4), name="img_fc2_w")
-            img_b5 = tf.Variable(tf.random_uniform([layer2_size], -1e-4, 1e-4), name="img_fc2_b")
-            img_layer9 = tf.nn.relu(tf.matmul(img_layer8, img_w5) + img_b5, name="img_fc2")
+            steer_w = tf.Variable(tf.random_uniform([layer2_size, 1], -3e-4, 3e-4), name="action_steer_w")
+            steer_b = tf.Variable(tf.random_uniform([1], -3e-4, 3e-4), name="action_steer_b")
+            steer = tf.tanh(tf.matmul(img_layer6, steer_w) + steer_b, name="action_steer")
 
-            steer_w = tf.Variable(tf.random_uniform([layer2_size, 1], -1e-4, 1e-4), name="action_steer_w")
-            steer_b = tf.Variable(tf.random_uniform([1], -1e-4, 1e-4), name="action_steer_b")
-            steer = tf.tanh(tf.matmul(img_layer9, steer_w) + steer_b, name="action_steer")
-
-            # accel_w = tf.Variable(tf.random_uniform([layer2_size, 1], -1e-4, 1e-4))
-            # accel_b = tf.Variable(tf.random_uniform([1], -1e-4, 1e-4))
-            # accel = tf.sigmoid(tf.matmul(layer2, accel_w) + accel_b)
-
-            # brake_w = tf.Variable(tf.random_uniform([layer2_size, 1], -1e-4, 1e-4))
-            # brake_b = tf.Variable(tf.random_uniform([1], -1e-4, 1e-4))
-            # brake = tf.sigmoid(tf.matmul(layer2, brake_w) + brake_b)
-        
-            # action_output = tf.concat([steer, accel, brake], 1)
             action_output = steer
 
         return img_input, action_output, \
@@ -92,21 +86,16 @@ class ActorNetwork:
 
             img_input = tf.placeholder(dtype=tf.float32, shape=[None, img_dim[0], img_dim[1], img_dim[2]])
             img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, target_net[0], [1, 1, 1, 1], "VALID") + target_net[1], name="img_conv1")
-            img_layer2 = tf.nn.max_pool(img_layer1, [1, 2, 2, 1], [1, 2, 2, 1], "VALID", name="img_maxpool1")
-            img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, target_net[2], [1, 1, 1, 1], "VALID") + target_net[3], name="img_conv2")
-            img_layer4 = tf.nn.max_pool(img_layer3, [1, 2, 2, 1], [1, 2, 2, 1], "VALID", name="img_maxpool2")
-            img_layer5 = tf.nn.relu(tf.nn.conv2d(img_layer4, target_net[4], [1, 1, 1, 1], "VALID") + target_net[5], name="img_conv3")
-            img_layer6 = tf.nn.max_pool(img_layer5, [1, 2, 2, 1], [1, 2, 2, 1], "VALID", name="img_maxpool3")
-            flatten = int(img_layer6.shape[1] * img_layer6.shape[2] * img_layer6.shape[3])
-            img_layer7 = tf.reshape(img_layer6, [-1, flatten], name="img_flatten")
-            img_layer8 = tf.nn.relu(tf.matmul(img_layer7, target_net[6]) + target_net[7], name="img_fc1")
-            img_layer9 = tf.nn.relu(tf.matmul(img_layer8, target_net[8]) + target_net[9], name="img_fc2")
-            steer = tf.tanh(tf.matmul(img_layer9, target_net[10]) + target_net[11], name="action_steer")
-            # accel = tf.sigmoid(tf.matmul(layer2,target_net[6]) + target_net[7])
-            # brake = tf.sigmoid(tf.matmul(layer2,target_net[8]) + target_net[9])
-            # action_output = tf.concat([steer, accel, brake], 1)
+            img_layer2 = tf.nn.relu(tf.nn.conv2d(img_layer1, target_net[2], [1, 1, 1, 1], "VALID") + target_net[3], name="img_conv2")
+            img_layer3 = tf.nn.relu(tf.nn.conv2d(img_layer2, target_net[4], [1, 1, 1, 1], "VALID") + target_net[5], name="img_conv3")
+            flatten = int(img_layer3.shape[1] * img_layer3.shape[2] * img_layer3.shape[3])
+            img_layer4 = tf.reshape(img_layer3, [-1, flatten], name="img_flatten")
+            img_layer5 = tf.nn.relu(tf.matmul(img_layer4, target_net[6]) + target_net[7], name="img_fc1")
+            img_layer6 = tf.nn.relu(tf.matmul(img_layer5, target_net[8]) + target_net[9], name="img_fc2")
+            steer = tf.tanh(tf.matmul(img_layer6, target_net[10]) + target_net[11], name="action_steer")
 
-        action_output = steer
+            action_output = steer
+
         return img_input, action_output, target_update, target_net
 
     def update_target(self):

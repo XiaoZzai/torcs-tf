@@ -13,7 +13,7 @@ from ReplayBuffer import ReplayBuffer
 
 REPLAY_BUFFER_SIZE = 50000
 REPLAY_START_SIZE = 100
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 GAMMA = 0.99
 
 
