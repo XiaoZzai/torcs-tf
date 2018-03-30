@@ -7,7 +7,7 @@ import math
 LAYER1_SIZE = 300
 LAYER2_SIZE = 600
 LEARNING_RATE = 1e-3
-TAU = 0.001
+TAU = 1e-3
 L2 = 0.0001
 
 class CriticNetwork:

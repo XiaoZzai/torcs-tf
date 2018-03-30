@@ -15,7 +15,7 @@ def main():
 
     # Creating necessary directories
     test_track_no = 6
-    experiment_name = "tensorboard-11"
+    experiment_name = "noisy-1"
     experiment_dir  = "experiment-%s/" % experiment_name
     models_dir = experiment_dir + "model/"
     logs_test_dir = experiment_dir + "logs-test-track-no-%d/" % test_track_no

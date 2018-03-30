@@ -22,7 +22,7 @@ def main():
     epsilon   = epsilon_start
 
     # Creating necessary directories
-    experiment_name = "tensorboard-12"
+    experiment_name = "noisy-3"
     experiment_dir  = "experiment-%s/" % experiment_name
     models_dir = experiment_dir + "model/"
     logs_train_dir = experiment_dir + "logs-train/"
@@ -33,15 +33,14 @@ def main():
     if os.path.exists(models_dir) == False:
         os.mkdir(models_dir)
 
-    description = 'Using the (angle, track, trackPos, speedX, speedY, speedZ, rpm, steer) as input, output (steer)' + '\n' + \
-                    'Training based on experiment-tensorboard-11' + '\n\n' \
-                    'throttle = 0.16' + '\n\n' \
+    description = 'Using the (angle, trackPos, speedX, speedY, speedZ, steer) with noisy as input, output (steer)' + '\n\n' + \
+                    'Training from scratch' + '\n\n' \
+                    'throttle = 0.14' + '\n\n' \
                     'brake = 0' + '\n\n' \
                     'sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs["trackPos"])  \
-                    - sp * np.abs(action_torcs["steer"]) * 4' + '\n\n' + \
-                    'env = TorcsEnv(vision=False, throttle=True, text_mode=False, track_no=6, random_track=False, track_range=(5, 8))' + '\n\n' \
-                    'abs(trackPos) > 0.9 is out of track' + '\n\n' \
-                    'actor_rl=1e-5, critic_rl=1e-4'
+                    - sp * np.abs(action_torcs["steer"]) * 3 - sp * np.abs(action_torcs["steer"]-self.last_steer) * 3' + '\n\n' + \
+                    'env = TorcsEnv(vision=False, throttle=True, text_mode=False, track_no=5, random_track=False, track_range=(5, 8))' + '\n\n' \
+                    'abs(trackPos) > 0.9 is out of track' + '\n\n'
 
     with open(experiment_dir + "README.md", 'w') as file:
         file.write(description)
@@ -49,7 +48,7 @@ def main():
         file.write(formatted_timestamp())
 
     action_dim = 1
-    state_dim  = 25
+    state_dim  = 6
     env_name   = 'torcs'
 
     sess = tf.InteractiveSession()
@@ -57,7 +56,7 @@ def main():
     agent.load_network()
 
     vision = False
-    env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=6, random_track=False, track_range=(5, 8))
+    env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=5, random_track=False, track_range=(5, 8))
 
     rewards_every_steps = np.zeros([MAX_STEPS])
     actions_every_steps = np.zeros([MAX_STEPS, action_dim])
@@ -110,9 +109,9 @@ def main():
 
             # s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
             #                  0.0))
-            s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
+            # s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
 
-            # x_t = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
+            s_t = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
             # s_t = np.hstack((x_t, x_t, x_t, x_t))
 
             total_reward = 0
@@ -120,17 +119,17 @@ def main():
             while (step < MAX_STEPS) and (step_ep < MAX_STEPS_EP):
                 # Take noisy actions during training
                 epsilon -= 1.0 / EXPLORE
-                epsilon = max(epsilon, 0.0)
+                epsilon = max(epsilon, 0.05)
                 a_t = agent.noise_action(s_t, epsilon)
 
                 #ob, r_t, done, info = env.step(a_t[0], early_stop)
 
-                ob, r_t, done, info = env.step([a_t[0], 0.16, 0])
+                ob, r_t, done, info = env.step([a_t[0], 0.14, 0])
                 # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
                 #                   a_t[0]))
-                s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
+                # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
 
-                # x_t1 = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
+                s_t1 = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
                 # s_t1 = np.hstack((np.roll(s_t, -6)[:18], x_t1))
                 # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
 

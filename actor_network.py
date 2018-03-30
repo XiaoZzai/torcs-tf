@@ -7,7 +7,7 @@ import math
 LAYER1_SIZE = 300
 LAYER2_SIZE = 600
 LEARNING_RATE = 1e-4
-TAU = 0.001
+TAU = 1e-3
 BATCH_SIZE = 32
 class ActorNetwork:
     """docstring for ActorNetwork"""
