@@ -148,8 +148,8 @@ class TorcsEnv:
         # progress = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) - sp * np.abs(obs['trackPos']) \
         #             - sp * np.abs(action_torcs['steer']) * 2 - np.abs(sp*(action_torcs['steer']-self.last_steer)) * 5
 
-        progress = sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs['trackPos']) \
-                    - sp * np.abs(action_torcs['steer']) * 4
+        progress = sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs['trackPos'])  \
+                    - sp * np.abs(action_torcs['steer']) * 2
 
         reward = progress
 
@@ -316,7 +316,7 @@ class TorcsEnv:
 
             # Get RGB from observation
             image_rgb = self.obs_vision_to_image_rgb(raw_obs[names[10]])
-            image_rgb = cv2.flip(image_rgb, 0) / 255.0
+            image_rgb = cv2.flip(image_rgb, 0)
             # os.system("scrot -u .tmp.png")
             # image_rgb = plt.imread(".tmp.png")
             # print(image_rgb)

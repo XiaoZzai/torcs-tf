@@ -11,7 +11,7 @@ from ReplayBuffer import ReplayBuffer
 
 # Hyper Parameters:
 
-REPLAY_BUFFER_SIZE = 50000
+REPLAY_BUFFER_SIZE = 10000
 REPLAY_START_SIZE = 100
 BATCH_SIZE = 16
 GAMMA = 0.99
@@ -65,7 +65,15 @@ class ddpg:
 
         # Update the actor policy using the sampled gradient:
         action_batch_for_gradients = self.actor_network.actions(img_batch)
-        q_gradient_batch = self.critic_network.gradients(action_batch_for_gradients, img_batch)
+
+        q_gradient_batch = self.critic_network.gradie
+
+
+
+
+
+
+        nts(action_batch_for_gradients, img_batch)
 
         self.actor_network.train(q_gradient_batch, img_batch)
 
@@ -100,7 +108,7 @@ class ddpg:
         action = self.actor_network.action(img)
         noise_t = np.zeros(self.action_dim)
 
-        noise_t[0] = 0.2 * ornstein_uhlenbeck_process(action[0],  0.0 , 0.60, 0.80)
+        noise_t[0] = epsilon * ornstein_uhlenbeck_process(action[0],  0.0 , 0.60, 0.80)
         # noise_t[1] = epsilon * ornstein_uhlenbeck_process(action[1],  0.5 , 1.00, 0.10)
         # noise_t[2] = epsilon * ornstein_uhlenbeck_process(action[2], -0.1 , 1.00, 0.05)
         action = action + noise_t
@@ -112,6 +120,7 @@ class ddpg:
     def perceive(self, img, action, reward, next_img, done):
         if not (math.isnan(reward)):
             self.replay_buffer.add(img, action, reward, next_img, done)
+
         self.time_step =  self.time_step + 1
 
         # Return critic cost
