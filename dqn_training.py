@@ -3,26 +3,25 @@ from __future__ import print_function
 
 import tensorflow as tf
 import cv2
-import sys
 from gym_torcs import TorcsEnv
 import random
 import numpy as np
 from collections import deque
 
 GAME = 'torcs' # the name of the game being played for log files
-STEERS = [-0.12, -0.6, 0, 0.6, 0.12]
+STEERS = [-0.15, -0.10, -0.05, 0, 0.05, 0.10, 0.15]
 ACTIONS = len(STEERS) # number of valid actions
 GAMMA = 0.99 # decay rate of past observations
-OBSERVE = 100000. # timesteps to observe before training
+OBSERVE = 50000. # timesteps to observe before training
 EXPLORE = 2000000. # frames over which to anneal epsilon
 FINAL_EPSILON = 0.0001 # final value of epsilon
-INITIAL_EPSILON = 0.2 # starting value of epsilon
+INITIAL_EPSILON = 0.3 # starting value of epsilon
 REPLAY_MEMORY = 50000 # number of previous transitions to remember
 BATCH = 32 # size of minibatch
 FRAME_PER_ACTION = 1
 
 def index_to_action(index):
-    return [STEERS[index], 0.12, 0]
+    return [STEERS[index], 0.10, 0]
 
 def weight_variable(shape):
     initial = tf.truncated_normal(shape, stddev = 0.01)
@@ -105,6 +104,7 @@ def trainNetwork(s, readout, h_fc1, sess):
     t = 0
     i = 0
     MAX_STEPS = 2000000
+    MAX_STEPS_EP = 3000
     env = TorcsEnv(vision=True, throttle=True, text_mode=False, track_no=15, random_track=False, track_range=(5, 8))
     while t < MAX_STEPS:
         if np.mod(i, 3) == 0:
@@ -115,9 +115,9 @@ def trainNetwork(s, readout, h_fc1, sess):
         x_t = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY)
         ret, x_t = cv2.threshold(x_t, 1, 255, cv2.THRESH_BINARY)
         i_t = np.stack((x_t, x_t, x_t, x_t), axis=2)
-        print(i_t.shape)
+        t_ep = 0
+        while (t < MAX_STEPS) and (t_ep < MAX_STEPS_EP):
 
-        while t < MAX_STEPS:
             # choose an action epsilon greedily
             readout_t = readout.eval(feed_dict={s : [i_t]})[0]
             a_t = np.zeros([ACTIONS])
@@ -139,8 +139,6 @@ def trainNetwork(s, readout, h_fc1, sess):
             ob, r_t, terminal, info = env.step(index_to_action(action_index))
             x_t1 = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY)
             ret, x_t1 = cv2.threshold(x_t1, 1, 255, cv2.THRESH_BINARY)
-            # cv2.imshow("GG", x_t1)
-            # cv2.waitKey(0)
             x_t1 = x_t1.reshape(64, 64, 1)
             i_t1 = np.append(x_t1, i_t[:, :, :3], axis=2)
             # s_t1 = None
@@ -180,6 +178,7 @@ def trainNetwork(s, readout, h_fc1, sess):
             # update the old values
             i_t = i_t1
             t += 1
+            t_ep += 1
 
             # save progress every 10000 iterations
             if t % 10000 == 0:
