@@ -7,6 +7,7 @@ np.random.seed(2018)
 
 import guide_ddpg
 from gym_torcs import TorcsEnv
+import cv2
 from ddpg import ddpg
 
 def main():
@@ -15,7 +16,7 @@ def main():
     MAX_STEPS_EP = 2000
 
     # Creating necessary directories
-    test_track_no = 5
+    test_track_no = 15
     experiment_name = "tensorboard-4"
     experiment_dir  = "experiment-%s/" % experiment_name
     models_dir = experiment_dir + "model/"
@@ -41,7 +42,7 @@ def main():
     agent = guide_ddpg.ddpg(env_name, sess, state_dim, action_dim, models_dir)
     agent.load_network()
 
-    vision = False
+    vision = True
     env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=test_track_no, random_track=False, track_range=(0, 3))
 
     # rewards_every_steps = np.zeros([MAX_EP, MAX_STEPS_EP])
@@ -80,11 +81,19 @@ def main():
             # s_t = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
             # s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
 
+            x_t = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY)
+            _, x_t = cv2.threshold(x_t, 25, 255, cv2.THRESH_BINARY)
+            x_t = x_t.reshape(64, 64, 1) / 255
+
             total_reward = 0
             step_ep = 0
             while (step_ep < MAX_STEPS_EP):
+
+                cv2.imshow("img", x_t)
+                cv2.waitKey(1)
+
                 a_t = agent.action(s_t)
-                ob, r_t, done, info = env.step([a_t[0], 0.16, 0])
+                ob, r_t, done, info = env.step([a_t[0], 0.14, 0])
                 s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
                                    a_t[0]))
                 #s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
@@ -94,6 +103,13 @@ def main():
 
                 # s_t1 = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
                 # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
+
+                x_t1 = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY)
+                _, x_t1 = cv2.threshold(x_t1, 1, 255, cv2.THRESH_BINARY)
+                x_t1 = x_t1.reshape(64, 64, 1) / 255
+                # print(x_t1)
+
+                x_t = x_t1
 
                 summary = sess.run([merged_summary], feed_dict={
                     actor_action : a_t[0],

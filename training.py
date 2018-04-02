@@ -16,16 +16,21 @@ from my_config import *
 print( total_explore )
 print( max_steps )
 print( epsilon_start )
+print( total_observe )
 
 def main():
 
+    OBSERVE = total_observe
     EXPLORE   = total_explore
     MAX_STEPS = max_steps
     MAX_STEPS_EP = max_steps_ep
+    INIT_EPSILON = epsilon_start
+    FINAL_EPSILON = epsilon_end
+
     epsilon   = epsilon_start
 
     # Creating necessary directories
-    experiment_name = "img-3"
+    experiment_name = "img-4"
     experiment_dir  = "experiment-%s/" % experiment_name
     models_dir = experiment_dir + "model/"
     logs_train_dir = experiment_dir + "logs-train/"
@@ -36,14 +41,14 @@ def main():
     if os.path.exists(models_dir) == False:
         os.mkdir(models_dir)
 
-    description = 'Only using raw pixels(3 frames) as input, output (steer)' + '\n' + \
-                    'Training from scratch ' + '\n\n' \
-                    'Img dim = [64, 64, 12]' + '\n\n' \
-                    'throttle = 0.16' + '\n\n' \
+    description = 'Only using raw pixels(4 frames) as input, output (steer)' + '\n' + \
+                    'Training from scratch with actor mimic' + '\n\n' \
+                    'Img dim = [64, 64, 4]' + '\n\n' \
+                    'throttle = 0.14' + '\n\n' \
                     'brake = 0' + '\n\n' \
                     'sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs["trackPos"])  \
                     - sp * np.abs(action_torcs["steer"]) * 4' + '\n\n' + \
-                    'env = TorcsEnv(vision=False, throttle=True, text_mode=False, track_no=5, random_track=False, track_range=(5, 8))' + '\n\n' \
+                    'env = TorcsEnv(vision=False, throttle=True, text_mode=False, track_no=15, random_track=False, track_range=(5, 8))' + '\n\n' \
                     'abs(trackPos) > 1 is out of track' + '\n\n' \
 
     with open(experiment_dir + "README.md", 'w') as file:
@@ -52,7 +57,7 @@ def main():
         file.write(formatted_timestamp())
 
     action_dim = 1
-    img_dim = [64, 64, 9]
+    img_dim = [64, 64, 4]
     env_name   = 'torcs'
 
     guide_agent = guide_ddpg.ddpg('torcs', tf.InteractiveSession(), 30, 1, "experiment-tensorboard-4/model/")
@@ -63,7 +68,7 @@ def main():
     agent.load_network()
 
     vision = True
-    env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=5, random_track=False, track_range=(5, 8))
+    env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=15, random_track=False, track_range=(5, 8))
 
     rewards_every_steps = np.zeros([MAX_STEPS])
     actions_every_steps = np.zeros([MAX_STEPS, action_dim])
@@ -75,7 +80,7 @@ def main():
         critic_cost = tf.placeholder(dtype=tf.float32)
         actor_action = tf.placeholder(dtype=tf.float32)
         reward = tf.placeholder(dtype=tf.float32)
-        img = tf.placeholder(dtype=tf.float32, shape=(1, img_dim[0], img_dim[1], img_dim[2]))
+        # img = tf.placeholder(dtype=tf.float32, shape=(1, img_dim[0], img_dim[1], img_dim[2]))
         tf.summary.scalar("critic_cost", critic_cost)
         tf.summary.scalar('actor_action', actor_action)
         tf.summary.scalar('reward', reward)
@@ -97,10 +102,6 @@ def main():
             else:
                 ob = env.reset()
 
-            if step > 100:
-                for k in range(50):
-                    agent.train()
-
             # Early episode annealing for out of track driving and small progress
             # During early training phases - out of track and slow driving is allowed as humans do ( Margin of error )
             # As one learns to drive the constraints become stricter
@@ -115,38 +116,38 @@ def main():
 
             s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
                               0.0))
-            # s_t = np.hstack((ob.speedX, ob.speedY, ob.speedZ, 0.0))
-            i_t = np.concatenate((ob.img, ob.img, ob.img), axis=2)
-            # cv2.imshow("img", ob.img)
-            # cv2.waitKey(0)
-            # x_t = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
-            # s_t = np.hstack((x_t, x_t, x_t, x_t))
+
+            x_t = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY)
+            ret, x_t = cv2.threshold(x_t, 1, 255, cv2.THRESH_BINARY)
+            x_t = x_t / 255
+            i_t = np.stack((x_t, x_t, x_t, x_t), axis=2)
 
             total_reward = 0
             step_ep = 0
             while (step < MAX_STEPS) and (step_ep < MAX_STEPS_EP):
-                # Take noisy actions during training
-                epsilon -= 1.0 / EXPLORE
-                epsilon = max(epsilon, 0.05)
-                if (step < 5000) or (np.random.random() < 0.5 - (step / 15000.0)):
+
+                if (step >= OBSERVE) and (step < EXPLORE + OBSERVE):
+                    epsilon -= (INIT_EPSILON - FINAL_EPSILON) / EXPLORE
+
+                if (step < OBSERVE * 2 / 3) or (np.random.random() < epsilon):
                     a_t = guide_agent.action(s_t)
                 else:
                     a_t = agent.noise_action(epsilon, i_t)
-                #ob, r_t, done, info = env.step(a_t[0], early_stop)
 
-                ob, r_t, done, info = env.step([a_t[0], 0.16, 0])
+                ob, r_t, done, info = env.step([a_t[0], 0.14, 0])
 
                 s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
                                   a_t[0]))
 
-                # s_t1 = np.hstack((ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
-                i_t1 = np.concatenate([i_t[:, :, 3:], ob.img], axis=2)
-                # print(i_t1.shape)
-                # print(i_t1[:, :, 6:])
-                # x_t1 = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
-                # s_t1 = np.hstack((np.roll(s_t, -6)[:18], x_t1))
-                # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
+                x_t1 = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY)
+                _, x_t1 = cv2.threshold(x_t1, 1, 255, cv2.THRESH_BINARY)
+                x_t1 = x_t1.reshape(img_dim[0], img_dim[1], 1)
+                x_t1 = x_t1 / 255
 
+                # cv2.imshow("img", x_t1)
+                # cv2.waitKey(0)
+
+                i_t1 = np.append(x_t1, i_t[:, :, :3], axis=2)
                 cost = agent.perceive(i_t, a_t, r_t, i_t1, done)
                 summary = sess.run(merged_summary, feed_dict={
                     critic_cost : cost,

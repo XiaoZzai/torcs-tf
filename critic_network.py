@@ -45,7 +45,7 @@ class CriticNetwork:
         with tf.name_scope("critic_network"):
             img_input = tf.placeholder(dtype=tf.float32, shape=[None, img_dim[0], img_dim[1], img_dim[2]], name="img_input")
             init_num = 1/math.sqrt(int(img_input.shape[1] * img_input.shape[2] * img_input.shape[3]))
-            img_w1 = tf.Variable(tf.random_uniform(([5, 5, 9, 32]), -init_num, init_num), name="img_conv1_w")
+            img_w1 = tf.Variable(tf.random_uniform(([5, 5, 4, 32]), -init_num, init_num), name="img_conv1_w")
             img_b1 = tf.Variable(tf.random_uniform([32], -init_num, init_num), name="img_conv1_b")
             img_layer1 = tf.nn.relu(tf.nn.conv2d(img_input, img_w1, [1, 1, 1, 1], "VALID") + img_b1, name="img_conv1")
 

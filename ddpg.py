@@ -11,7 +11,7 @@ from ReplayBuffer import ReplayBuffer
 
 # Hyper Parameters:
 
-REPLAY_BUFFER_SIZE = 10000
+REPLAY_BUFFER_SIZE = 50000
 REPLAY_START_SIZE = 100
 BATCH_SIZE = 16
 GAMMA = 0.99
@@ -66,14 +66,7 @@ class ddpg:
         # Update the actor policy using the sampled gradient:
         action_batch_for_gradients = self.actor_network.actions(img_batch)
 
-        q_gradient_batch = self.critic_network.gradie
-
-
-
-
-
-
-        nts(action_batch_for_gradients, img_batch)
+        q_gradient_batch = self.critic_network.gradients(action_batch_for_gradients, img_batch)
 
         self.actor_network.train(q_gradient_batch, img_batch)
 
