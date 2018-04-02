@@ -10,6 +10,7 @@ from collections import deque
 
 GAME = 'torcs' # the name of the game being played for log files
 STEERS = [-0.15, -0.10, -0.05, 0, 0.05, 0.10, 0.15]
+IMG_DIM = [64, 64, 4]
 ACTIONS = len(STEERS) # number of valid actions
 GAMMA = 0.99 # decay rate of past observations
 OBSERVE = 50000. # timesteps to observe before training
@@ -49,7 +50,7 @@ def createNetwork():
     b_conv3 = bias_variable([64])
 
     # input layer
-    s = tf.placeholder("float", [None, 225, 225, 4])
+    s = tf.placeholder("float", [None, IMG_DIM[0], IMG_DIM[1], IMG_DIM[2]])
 
     # hidden layers
     h_conv1 = tf.nn.relu(conv2d(s, W_conv1, 4) + b_conv1)
@@ -113,8 +114,9 @@ def trainNetwork(s, readout, h_fc1, sess):
             ob = env.reset()
 
         # x_t = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY)
-        x_t = cv2.cvtColor(cv2.resize(ob.img, (225, 225)), cv2.COLOR_RGB2GRAY)
+        x_t = cv2.cvtColor(cv2.resize(ob.img, (IMG_DIM[0], IMG_DIM[1])), cv2.COLOR_RGB2GRAY)
         ret, x_t = cv2.threshold(x_t, 1, 255, cv2.THRESH_BINARY)
+        x_t = x_t / 255
         i_t = np.stack((x_t, x_t, x_t, x_t), axis=2)
         t_ep = 0
         while (t < MAX_STEPS) and (t_ep < MAX_STEPS_EP):
@@ -138,10 +140,10 @@ def trainNetwork(s, readout, h_fc1, sess):
 
             # run the selected action and observe next state and reward
             ob, r_t, terminal, info = env.step(index_to_action(action_index))
-            x_t1 = cv2.resize(ob.img, (225, 225))
+            x_t1 = cv2.resize(ob.img, (IMG_DIM[0], IMG_DIM[1]))
             x_t1 = cv2.cvtColor(x_t1, cv2.COLOR_RGB2GRAY)
             ret, x_t1 = cv2.threshold(x_t1, 1, 255, cv2.THRESH_BINARY)
-            x_t1 = x_t1.reshape(255, 255, 1)
+            x_t1 = x_t1.reshape(IMG_DIM[0], IMG_DIM[1], 1)
             i_t1 = np.append(x_t1, i_t[:, :, :3], axis=2)
             # store the transition in D
             D.append((i_t, a_t, r_t, i_t1, terminal))
