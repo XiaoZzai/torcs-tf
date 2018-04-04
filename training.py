@@ -18,6 +18,12 @@ print( max_steps )
 print( epsilon_start )
 print( total_observe )
 
+def img_process(img):
+    x_t = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    # _, x_t = cv2.threshold(x_t, 1, 255, cv2.THRESH_BINARY)
+    x_t = x_t.reshape(x_t.shape[0], x_t.shape[1], 1) / 255
+    return x_t
+
 def main():
 
     OBSERVE = total_observe
@@ -30,7 +36,7 @@ def main():
     epsilon   = epsilon_start
 
     # Creating necessary directories
-    experiment_name = "img-4"
+    experiment_name = "img-5"
     experiment_dir  = "experiment-%s/" % experiment_name
     models_dir = experiment_dir + "model/"
     logs_train_dir = experiment_dir + "logs-train/"
@@ -46,10 +52,9 @@ def main():
                     'Img dim = [64, 64, 4]' + '\n\n' \
                     'throttle = 0.14' + '\n\n' \
                     'brake = 0' + '\n\n' \
-                    'sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs["trackPos"])  \
-                    - sp * np.abs(action_torcs["steer"]) * 4' + '\n\n' + \
-                    'env = TorcsEnv(vision=False, throttle=True, text_mode=False, track_no=15, random_track=False, track_range=(5, 8))' + '\n\n' \
-                    'abs(trackPos) > 1 is out of track' + '\n\n' \
+                    '-np.abs(action_torcs["steer"])' + '\n\n' + \
+                    'env = TorcsEnv(vision=False, throttle=True, text_mode=False, track_no=5, random_track=False, track_range=(5, 8))' + '\n\n' \
+                    'abs(trackPos) > 0.9 is out of track' + '\n\n' \
 
     with open(experiment_dir + "README.md", 'w') as file:
         file.write(description)
@@ -68,7 +73,7 @@ def main():
     agent.load_network()
 
     vision = True
-    env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=15, random_track=False, track_range=(5, 8))
+    env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=5, random_track=False, track_range=(5, 8))
 
     rewards_every_steps = np.zeros([MAX_STEPS])
     actions_every_steps = np.zeros([MAX_STEPS, action_dim])
@@ -118,34 +123,41 @@ def main():
                               0.0))
 
             x_t = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY)
-            ret, x_t = cv2.threshold(x_t, 1, 255, cv2.THRESH_BINARY)
+            # x_t = cv2.resize(x_t, (img_dim[0], img_dim[1]))
+            # ret, x_t = cv2.threshold(x_t, 15, 255, cv2.THRESH_BINARY)
             x_t = x_t / 255
+            # print(x_t)
+
             i_t = np.stack((x_t, x_t, x_t, x_t), axis=2)
 
             total_reward = 0
             step_ep = 0
             while (step < MAX_STEPS) and (step_ep < MAX_STEPS_EP):
 
+                # cv2.imshow("img", x_t)
+                # cv2.waitKey(0)
+
                 if (step >= OBSERVE) and (step < EXPLORE + OBSERVE):
                     epsilon -= (INIT_EPSILON - FINAL_EPSILON) / EXPLORE
 
-                if (step < OBSERVE * 2 / 3) or (np.random.random() < epsilon):
+                if (np.random.random() < epsilon):
                     a_t = guide_agent.action(s_t)
                 else:
-                    a_t = agent.noise_action(epsilon, i_t)
+                    e = np.clip(epsilon, 0.05, 0.15)
+                    a_t = agent.noise_action(e, i_t)
 
-                ob, r_t, done, info = env.step([a_t[0], 0.14, 0])
+                ob, r_t, done, info = env.step([a_t[0], 0.16, 0])
 
                 s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
                                   a_t[0]))
 
                 x_t1 = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY)
-                _, x_t1 = cv2.threshold(x_t1, 1, 255, cv2.THRESH_BINARY)
-                x_t1 = x_t1.reshape(img_dim[0], img_dim[1], 1)
+                # x_t1 = cv2.resize(x_t1, (img_dim[0], img_dim[1]))
+                # _, x_t1 = cv2.threshold(x_t1, 15, 255, cv2.THRESH_BINARY)
+                x_t1 = x_t1.reshape(x_t1.shape[0], x_t1.shape[1], 1)
                 x_t1 = x_t1 / 255
 
-                # cv2.imshow("img", x_t1)
-                # cv2.waitKey(0)
+                # cv2.imshow("img", x_t)
 
                 i_t1 = np.append(x_t1, i_t[:, :, :3], axis=2)
                 cost = agent.perceive(i_t, a_t, r_t, i_t1, done)
@@ -170,7 +182,7 @@ def main():
                 step_ep += 1
 
 
-                if np.mod(step + 1, 10000) == 0:
+                if np.mod(step + 1, 20000) == 0:
                         print("Now we save model with step = ", step)
                         agent.save_network(step + 1)
 

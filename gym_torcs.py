@@ -148,11 +148,11 @@ class TorcsEnv:
         # progress = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) - sp * np.abs(obs['trackPos']) \
         #             - sp * np.abs(action_torcs['steer']) * 2 - np.abs(sp*(action_torcs['steer']-self.last_steer)) * 5
 
-        progress = sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs['trackPos'])  \
-                    - sp * np.abs(action_torcs['steer']) * 2
-
-        reward = progress
-
+        # progress = sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs['trackPos'])  \
+        #             - sp * np.abs(action_torcs['steer']) * 2
+        # progress = -np.abs(action_torcs['steer'])
+        # reward = progress
+        reward = 1
         self.last_steer = action_torcs['steer']
 
         episode_terminate = False
@@ -172,28 +172,28 @@ class TorcsEnv:
         #     episode_terminate = True
         #     client.R.d['meta'] = True
 
-        if abs(trackPos) > 1:  # Episode is terminated if the car is out of track
+        if abs(trackPos) > 0.9:  # Episode is terminated if the car is out of track
             print("Out of track")
-            reward = -200
+            reward = -10
             episode_terminate = True
             client.R.d['meta'] = True
 
         if self.terminal_judge_start < self.time_step: # Episode terminates if the progress of agent is small
            if sp < 5 : # progress < self.termination_limit_progress:
                print("No progress")
-               reward = -200
+               reward = -10
                episode_terminate = True
                client.R.d['meta'] = True
 
         if np.cos(obs['angle']) < 0: # Episode is terminated if the agent runs backward
             print("Reversing")
             episode_terminate = True
-            reward = -200
+            reward = -10
             client.R.d['meta'] = True
 
         if client.R.d['meta'] is True: # Send a reset signal
             self.initial_run = False
-            reward = -200
+            reward = -10
             client.respond_to_server()
 
         self.time_step += 1

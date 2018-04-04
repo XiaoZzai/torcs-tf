@@ -10,6 +10,13 @@ from gym_torcs import TorcsEnv
 import cv2
 from ddpg import ddpg
 
+def img_process(img):
+    x_t = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    _, x_t = cv2.threshold(x_t, 1, 255, cv2.THRESH_BINARY)
+    x_t = x_t.reshape(x_t.shape[0], x_t.shape[1], 1) / 255
+    return x_t
+
+
 def main():
 
     MAX_EP = 1
@@ -63,6 +70,7 @@ def main():
     print("Testing Start.")
     start_time = time.time()
     step = 0
+    img_dim = [64, 64, 4]
     try:
         for i in range(MAX_EP):
             if np.mod(i, 3) == 0:
@@ -81,16 +89,14 @@ def main():
             # s_t = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
             # s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
 
-            x_t = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY)
-            _, x_t = cv2.threshold(x_t, 25, 255, cv2.THRESH_BINARY)
-            x_t = x_t.reshape(64, 64, 1) / 255
+            x_t = img_process(ob.img)
 
             total_reward = 0
             step_ep = 0
             while (step_ep < MAX_STEPS_EP):
 
                 cv2.imshow("img", x_t)
-                cv2.waitKey(1)
+                cv2.waitKey(10)
 
                 a_t = agent.action(s_t)
                 ob, r_t, done, info = env.step([a_t[0], 0.14, 0])
@@ -104,10 +110,7 @@ def main():
                 # s_t1 = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
                 # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
 
-                x_t1 = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY)
-                _, x_t1 = cv2.threshold(x_t1, 1, 255, cv2.THRESH_BINARY)
-                x_t1 = x_t1.reshape(64, 64, 1) / 255
-                # print(x_t1)
+                x_t1 = img_process(ob.img)
 
                 x_t = x_t1
 
