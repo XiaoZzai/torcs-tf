@@ -7,11 +7,11 @@ from utils import ornstein_uhlenbeck_process
 import math
 from critic_network import CriticNetwork 
 from actor_network import ActorNetwork
-from ReplayBuffer import ReplayBuffer
+from replay_buffer import ReplayBuffer
 
 # Hyper Parameters:
 
-REPLAY_BUFFER_SIZE = 100000
+REPLAY_BUFFER_SIZE = 50000
 REPLAY_START_SIZE = 100
 BATCH_SIZE = 32
 GAMMA = 0.99

@@ -3,19 +3,21 @@ import os
 import time
 import tensorflow as tf
 import traceback
+import cv2
 np.random.seed(2018)
 
+# from gym_torcs import TorcsEnv
 from gym_torcs import TorcsEnv
 from ddpg import ddpg
 
 def main():
 
-    MAX_EP = 1
-    MAX_STEPS_EP = 2000
+    MAX_EP = 6
+    MAX_STEPS_EP = 30
 
     # Creating necessary directories
     test_track_no = 6
-    experiment_name = "noisy-1"
+    experiment_name = "tensorboard-5"
     experiment_dir  = "experiment-%s/" % experiment_name
     models_dir = experiment_dir + "model/"
     logs_test_dir = experiment_dir + "logs-test-track-no-%d/" % test_track_no
@@ -32,7 +34,7 @@ def main():
         os.mkdir(logs_test_dir)
 
     action_dim = 1
-    state_dim  = 25
+    state_dim  = 30
     env_name   = 'torcs'
 
     sess = tf.InteractiveSession()
@@ -40,8 +42,8 @@ def main():
     agent.load_network()
 
     vision = False
-    env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=test_track_no, random_track=False, track_range=(0, 3))
-
+    # env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=test_track_no, random_track=False, track_range=(0, 3))
+    env = TorcsEnv(vision=vision, noisy=True)
     # rewards_every_steps = np.zeros([MAX_EP, MAX_STEPS_EP])
     # actions_every_steps = np.zeros([MAX_EP, MAX_STEPS_EP, action_dim])
 
@@ -69,9 +71,9 @@ def main():
 
             print(("Episode : " + str(i) + " Replay Buffer " + str(agent.replay_buffer.count())))
 
-            # s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
-            #                  0.0))
-            s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
+            s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
+                             0.0))
+            # s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
 
             # x_t = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
             # s_t = np.hstack((x_t, x_t, x_t, x_t))
@@ -81,11 +83,15 @@ def main():
             total_reward = 0
             step_ep = 0
             while (step_ep < MAX_STEPS_EP):
+
+                # cv2.imshow('img', ob.img)
+                # cv2.waitKey(10)
+
                 a_t = agent.action(s_t)
                 ob, r_t, done, info = env.step([a_t[0], 0.16, 0])
-                # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
-                #                   a_t[0]))
-                s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
+                s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
+                                  a_t[0]))
+                # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
 
                 # x_t1 = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
                 # s_t1 = np.hstack((np.roll(s_t, -6)[:18], x_t1))

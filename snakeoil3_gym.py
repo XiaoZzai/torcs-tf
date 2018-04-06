@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 # snakeoil.py
 # Chris X Edwards <snakeoil@xed.ch>
 # Snake Oil is a Python library for interfacing with a TORCS
@@ -53,14 +53,11 @@
 # Try `snakeoil.py --help` to get started.
 
 # for Python3-based torcs python robot client
-
-
 import socket
 import sys
 import getopt
 import os
 import time
-import numpy as np
 PI= 3.14159265359
 
 data_size = 2**17
@@ -118,16 +115,10 @@ def bargraph(x,mn,mx,w,c='X'):
     pnc= int(posnonpu/upw)*'_'
     return '[%s]' % (nnc+npc+ppc+pnc)
 
-class Client(object):
-    def __init__(self, H=None, p=None, i=None, e=None, t=None, s=None, d=None,
-                 vision=False, text_mode=False, track_no=0, random_track=False, track_range=(0, 5)):
-
+class Client():
+    def __init__(self,H=None,p=None,i=None,e=None,t=None,s=None,d=None,vision=False, torcs_restart_func=None, track_offset=0):
         # If you don't like the option defaults,  change them here.
         self.vision = vision
-        self.random_track = random_track
-        self.track_no = track_no
-        self.track_range = track_range
-        self.text_mode = text_mode
 
         self.host= 'localhost'
         self.port= 3001
@@ -137,7 +128,9 @@ class Client(object):
         self.stage= 3 # 0=Warm-up, 1=Qualifying 2=Race, 3=unknown <Default=3>
         self.debug= False
         self.maxSteps= 100000  # 50steps/second
-        self.parse_the_command_line()
+        self.torcs_restart_func = torcs_restart_func
+        self.track_offset = track_offset
+
         if H: self.host= H
         if p: self.port= p
         if i: self.sid= i
@@ -145,16 +138,9 @@ class Client(object):
         if t: self.trackname= t
         if s: self.stage= s
         if d: self.debug= d
-        self.S = ServerState()
-        self.R = DriverAction()
+        self.S= ServerState()
+        self.R= DriverAction()
         self.setup_connection()
-
-    def _select_track(self):
-        track_no = self.track_no
-        if self.random_track == True:
-            track_no = np.random.randint(low=self.track_range[0], high=self.track_range[1])
-        command = "sh autostart%d.sh" % track_no
-        os.system(command)
 
     def setup_connection(self):
         # == Set Up UDP Socket ==
@@ -187,17 +173,7 @@ class Client(object):
                 print("Waiting for server on %d............" % self.port)
                 print("Count Down : " + str(n_fail))
                 if n_fail < 0:
-                    print("relaunch torcs")
-                    os.system('pkill torcs')
-                    time.sleep(1.0)
-                    if self.vision is False:
-                        os.system('torcs %s -nofuel -nolaptime &' % ("-T" if self.text_mode else ""))
-                    else:
-                        os.system('torcs -nofuel -nodamage -nolaptime -vision &')
-
-                    time.sleep(1.0)
-                    self._select_track()
-
+                    self.torcs_restart_func(self.track_offset)
                     n_fail = 5
                 n_fail -= 1
 
@@ -304,7 +280,7 @@ class Client(object):
         self.so = None
         #sys.exit() # No need for this really.
 
-class ServerState(object):
+class ServerState():
     '''What the server is reporting right now.'''
     def __init__(self):
         self.servstr= str()
@@ -458,7 +434,7 @@ class ServerState(object):
             out+= "%s: %s\n" % (k,strout)
         return out
 
-class DriverAction(object):
+class DriverAction():
     '''What the driver is intending to do (i.e. send to the server).
     Composes something like this for the server:
     (accel 1)(brake 0)(gear 1)(steer 0)(clutch 0)(focus 0)(meta 0) or
@@ -547,7 +523,7 @@ def drive_example(c):
     '''This is only an example. It will get around the track but the
     correct thing to do is write your own `drive()` function.'''
     S,R= c.S.d,c.R.d
-    target_speed=1000
+    target_speed=100
 
     # Steer To Corner
     R['steer']= S['angle']*10 / PI
@@ -583,7 +559,7 @@ def drive_example(c):
 
 # ================ MAIN ================
 if __name__ == "__main__":
-    C= Client(p=3101)
+    C = Client(relaunch_torcs=False, p=3101)
     for step in range(C.maxSteps,0,-1):
         C.get_servers_input()
         drive_example(C)
