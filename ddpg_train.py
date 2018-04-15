@@ -6,7 +6,7 @@ import traceback
 np.random.seed(2018)
 
 from utils import formatted_timestamp
-from gym_torcs import TorcsEnv
+from torcs_wrapper import TorcsWrapper
 from ddpg import ddpg
 from my_config import *
 
@@ -22,7 +22,7 @@ def main():
     epsilon   = epsilon_start
 
     # Creating necessary directories
-    experiment_name = "noisy-3"
+    experiment_name = "noisy-4"
     experiment_dir  = "experiment-%s/" % experiment_name
     models_dir = experiment_dir + "model/"
     logs_train_dir = experiment_dir + "logs-train/"
@@ -33,13 +33,13 @@ def main():
     if os.path.exists(models_dir) == False:
         os.mkdir(models_dir)
 
-    description = 'Using the (angle, trackPos, speedX, speedY, speedZ, steer) with noisy as input, output (steer)' + '\n\n' + \
-                    'Training from scratch' + '\n\n' \
-                    'throttle = 0.14' + '\n\n' \
+    description = 'Using the (angle, track, trackPos, speed) with noisy as input, output (steer)' + '\n\n' + \
+                    'Training based on noisy-3' + '\n\n' \
+                    'throttle = 0.16' + '\n\n' \
                     'brake = 0' + '\n\n' \
                     'sp*np.cos(obs["angle"]) - np.abs(sp*np.sin(obs["angle"])) - sp * np.abs(obs["trackPos"])  \
-                    - sp * np.abs(action_torcs["steer"]) * 3 - sp * np.abs(action_torcs["steer"]-self.last_steer) * 3' + '\n\n' + \
-                    'env = TorcsEnv(vision=False, throttle=True, text_mode=False, track_no=5, random_track=False, track_range=(5, 8))' + '\n\n' \
+                    - sp * np.abs(action_torcs["steer"]) * 3 ' + '\n\n' + \
+                    'env = TorcsWraper(noisy=True)' + '\n\n' \
                     'abs(trackPos) > 0.9 is out of track' + '\n\n'
 
     with open(experiment_dir + "README.md", 'w') as file:
@@ -48,7 +48,7 @@ def main():
         file.write(formatted_timestamp())
 
     action_dim = 1
-    state_dim  = 6
+    state_dim  = 22
     env_name   = 'torcs'
 
     sess = tf.InteractiveSession()
@@ -56,7 +56,7 @@ def main():
     agent.load_network()
 
     vision = False
-    env = TorcsEnv(vision=vision, throttle=True, text_mode=False, track_no=5, random_track=False, track_range=(5, 8))
+    env = TorcsWrapper(noisy=True)
 
     rewards_every_steps = np.zeros([MAX_STEPS])
     actions_every_steps = np.zeros([MAX_STEPS, action_dim])
@@ -89,11 +89,8 @@ def main():
             # else:
             #     train_indicator=is_training
 
-            # restart because of memory leak bug in torcs
-            if np.mod(i, 3) == 0:
-                ob = env.reset(relaunch=True)
-            else:
-                ob = env.reset()
+            track_no = np.random.choice([-2, 0, 1])
+            s_t = env.reset(track_offset=track_no)
 
             # Early episode annealing for out of track driving and small progress
             # During early training phases - out of track and slow driving is allowed as humans do ( Margin of error )
@@ -111,7 +108,7 @@ def main():
             #                  0.0))
             # s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
 
-            s_t = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
+            # s_t = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, 0.0))
             # s_t = np.hstack((x_t, x_t, x_t, x_t))
 
             total_reward = 0
@@ -119,20 +116,10 @@ def main():
             while (step < MAX_STEPS) and (step_ep < MAX_STEPS_EP):
                 # Take noisy actions during training
                 epsilon -= 1.0 / EXPLORE
-                epsilon = max(epsilon, 0.05)
-                a_t = agent.noise_action(s_t, epsilon)
-
-                #ob, r_t, done, info = env.step(a_t[0], early_stop)
-
-                ob, r_t, done, info = env.step([a_t[0], 0.14, 0])
-                # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm,
-                #                   a_t[0]))
-                # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
-
-                s_t1 = np.hstack((ob.angle, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
-                # s_t1 = np.hstack((np.roll(s_t, -6)[:18], x_t1))
-                # s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, a_t[0]))
-
+                # a_t = agent.noise_action(s_t, np.clip(epsilon, 0.05, 0.2))
+                a_t = agent.action(s_t)
+                a_t[0] += np.random.uniform(-0.06, 0.06)
+                s_t1, r_t, done, info = env.step(a_t[0])
                 cost = agent.perceive(s_t, a_t, r_t, s_t1, done)
                 summary = sess.run([merged_summary], feed_dict={
                     critic_cost : cost,

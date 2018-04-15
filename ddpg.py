@@ -7,7 +7,7 @@ from utils import ornstein_uhlenbeck_process
 import math
 from critic_network import CriticNetwork 
 from actor_network import ActorNetwork
-from ReplayBuffer import ReplayBuffer
+from replay_buffer import ReplayBuffer
 
 # Hyper Parameters:
 
