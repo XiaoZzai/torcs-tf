@@ -12,11 +12,12 @@ import cv2
 # Torcs env only for steer controlling
 class Torcs:
 
-    def __init__(self, vision=False, screenshot=False, noisy=False, port=3101):
+    def __init__(self, vision=False, screenshot=False, noisy=False, port=3101, throttle=0.14):
         self.vision = vision
         self.screenshot = screenshot # If obtain image through screenshot or not
         self.port  = port
         self.noisy = noisy
+        self.throttle = throttle
 
         # self.observation_space = spaces.Box(low=-1, high=1, shape=[])
         # self.action_space = spaces.Box(low=-1, high=1, shape=[1]) # steer
@@ -56,7 +57,7 @@ class Torcs:
 
     def step(self, steer):
 
-        action = [steer, 0.20, 0]
+        action = [steer, self.throttle, 0]
 
         client = self.client
         this_action = self._agent_to_torcs(action)

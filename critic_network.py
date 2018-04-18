@@ -46,20 +46,17 @@ class CriticNetwork:
             # Convolution
             W_conv1, b_conv1 = self._conv_variable([8, 8, 4, 32])   # stride=4
             W_conv2, b_conv2 = self._conv_variable([4, 4, 32, 32])  # stride=2
-            W_conv3, b_conv3 = self._conv_variable([3, 3, 32, 32])  # stride=2
             h_conv1 = tf.nn.relu6(self._conv2d(s, W_conv1, 4) + b_conv1)
             h_conv2 = tf.nn.relu6(self._conv2d(h_conv1, W_conv2, 2) + b_conv2)
-            h_conv3 = tf.nn.relu6(self._conv2d(h_conv2, W_conv3, 2) + b_conv3)
 
-            print(h_conv3)
             # Flatten
-            flatten = int(h_conv3.shape[1] * h_conv3.shape[2] * h_conv3.shape[3])
-            h_conv3_flat = tf.reshape(h_conv3, [-1, flatten])
+            flatten = int(h_conv2.shape[1] * h_conv2.shape[2] * h_conv2.shape[3])
+            h_conv2_flat = tf.reshape(h_conv2, [-1, flatten])
 
             # Concat
             # print(h_conv3_flat)
             # print(a)
-            h_conv3_concat = tf.concat([h_conv3_flat, a], axis=1)
+            h_conv2_concat = tf.concat([h_conv2_flat, a], axis=1)
             # print(h_conv3_concat)
 
             # Dense
@@ -67,11 +64,11 @@ class CriticNetwork:
             W_fc2, b_fc2 = self._fc_variable([layer2_size, layer1_size])
             W_v, b_v = self._fc_variable([layer2_size, 1])
 
-            h_fc1 = tf.nn.relu6(tf.matmul(h_conv3_concat, W_fc1) + b_fc1)
+            h_fc1 = tf.nn.relu6(tf.matmul(h_conv2_concat, W_fc1) + b_fc1)
             h_fc2 = tf.nn.relu6(tf.matmul(h_fc1, W_fc2) + b_fc2)
             v = tf.nn.relu6(tf.matmul(h_fc2, W_v) + b_v)
 
-        return s, a, v, [W_conv1, b_conv1, W_conv2, b_conv2, W_conv3, b_conv3,
+        return s, a, v, [W_conv1, b_conv1, W_conv2, b_conv2,
                           W_fc1, b_fc1, W_fc2, b_fc2, W_v, b_v]
 
     def create_target_q_network(self, net):
@@ -87,19 +84,18 @@ class CriticNetwork:
             # Convolution
             h_conv1 = tf.nn.relu6(self._conv2d(s, target_net[0], 4) + target_net[1])
             h_conv2 = tf.nn.relu6(self._conv2d(h_conv1, target_net[2], 2) + target_net[3])
-            h_conv3 = tf.nn.relu6(self._conv2d(h_conv2, target_net[4], 2) + target_net[5])
 
             # Flatten
-            flatten = int(h_conv3.shape[1] * h_conv3.shape[2] * h_conv3.shape[3])
-            h_conv3_flat = tf.reshape(h_conv3, [-1, flatten])
+            flatten = int(h_conv2.shape[1] * h_conv2.shape[2] * h_conv2.shape[3])
+            h_conv2_flat = tf.reshape(h_conv2, [-1, flatten])
 
             # Concat
-            h_conv3_concat = tf.concat([h_conv3_flat, a], axis=1)
+            h_conv2_concat = tf.concat([h_conv2_flat, a], axis=1)
 
             # Dense
-            h_fc1 = tf.nn.relu6(tf.matmul(h_conv3_concat, target_net[6]) + target_net[7])
-            h_fc2 = tf.nn.relu6(tf.matmul(h_fc1, target_net[8]) + target_net[9])
-            v = tf.nn.relu6(tf.matmul(h_fc2, target_net[10]) + target_net[11])
+            h_fc1 = tf.nn.relu6(tf.matmul(h_conv2_concat, target_net[4]) + target_net[5])
+            h_fc2 = tf.nn.relu6(tf.matmul(h_fc1, target_net[6]) + target_net[7])
+            v = tf.nn.relu6(tf.matmul(h_fc2, target_net[8]) + target_net[9])
 
         return s, a, v, target_update
 

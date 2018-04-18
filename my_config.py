@@ -1,6 +1,6 @@
 # my_config.py
 
-epsilon_start  = 1
-total_explore  = 100000
-max_steps = 1600000
-max_steps_ep = 2000
+epsilon_start  = 0.5
+epsilon_end = 0.05
+max_steps_ep = 10000
+max_episode = 20000

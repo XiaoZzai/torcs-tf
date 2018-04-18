@@ -6,7 +6,7 @@ import traceback
 np.random.seed(2018)
 
 from torcs_wrapper import TorcsWrapper
-from ddpg import ddpg
+from guide_ddpg import guide_ddpg
 
 def main():
 
@@ -15,7 +15,7 @@ def main():
 
     # Creating necessary directories
     test_track_no = 6
-    experiment_name = "noisy-4"
+    experiment_name = "noisy-2"
     experiment_dir  = "experiment-%s/" % experiment_name
     models_dir = experiment_dir + "model/"
     logs_test_dir = experiment_dir + "logs-test-track-no-%d/" % test_track_no
@@ -32,15 +32,15 @@ def main():
         os.mkdir(logs_test_dir)
 
     action_dim = 1
-    state_dim  = 22
+    state_dim  = 25
     env_name   = 'torcs'
 
     sess = tf.InteractiveSession()
-    agent = ddpg(env_name, sess, state_dim, action_dim, models_dir)
+    agent = guide_ddpg(env_name, sess, state_dim, action_dim, models_dir)
     agent.load_network()
 
     vision = False
-    env = TorcsWrapper(noisy=True)
+    env = TorcsWrapper(noisy=False)
 
     # rewards_every_steps = np.zeros([MAX_EP, MAX_STEPS_EP])
     # actions_every_steps = np.zeros([MAX_EP, MAX_STEPS_EP, action_dim])
@@ -49,10 +49,10 @@ def main():
     with tf.name_scope('summary'):
         actor_action = tf.placeholder(dtype=tf.float32)
         reward = tf.placeholder(dtype=tf.float32)
-        state = tf.placeholder(dtype=tf.float32, shape=(state_dim, ))
+        # state = tf.placeholder(dtype=tf.float32, shape=(state_dim, ))
         tf.summary.scalar('actor_action', actor_action)
         tf.summary.scalar('reward', reward)
-        tf.summary.histogram('state', state)
+        # tf.summary.histogram('state', state)
         merged_summary = tf.summary.merge_all()
 
     writer = tf.summary.FileWriter(logs_test_dir, sess.graph)
@@ -69,12 +69,12 @@ def main():
             total_reward = 0
             step_ep = 0
             while (step_ep < MAX_STEPS_EP):
-                a_t = agent.action(s_t)
+                a_t = agent.action(s_t[1])
                 s_t1, r_t, done, info = env.step(a_t[0])
                 summary = sess.run([merged_summary], feed_dict={
                     actor_action : a_t[0],
                     reward : r_t,
-                    state : s_t
+                    # state : s_t
                 })
 
                 writer.add_summary(summary[0], step)

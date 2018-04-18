@@ -48,24 +48,22 @@ class ActorNetwork:
             # Convolution
             W_conv1, b_conv1 = self._conv_variable([8, 8, 4, 32])   # stride=4
             W_conv2, b_conv2 = self._conv_variable([4, 4, 32, 32])  # stride=2
-            W_conv3, b_conv3 = self._conv_variable([3, 3, 32, 32])  # stride=2
             h_conv1 = tf.nn.relu6(self._conv2d(s, W_conv1, 4) + b_conv1)
             h_conv2 = tf.nn.relu6(self._conv2d(h_conv1, W_conv2, 2) + b_conv2)
-            h_conv3 = tf.nn.relu6(self._conv2d(h_conv2, W_conv3, 2) + b_conv3)
 
             # Flatten
-            flatten = int(h_conv3.shape[1] * h_conv3.shape[2] * h_conv3.shape[3])
-            h_conv3_flat = tf.reshape(h_conv3, [-1, flatten])
+            flatten = int(h_conv2.shape[1] * h_conv2.shape[2] * h_conv2.shape[3])
+            h_conv2_flat = tf.reshape(h_conv2, [-1, flatten])
 
             # Dense
             W_fc1, b_fc1 = self._fc_variable([flatten, layer1_size])
             W_fc2, b_fc2 = self._fc_variable([layer2_size, layer1_size])
             W_steer, b_steer = self._fc_variable([layer2_size, 1])
 
-            h_fc1 = tf.nn.relu6(tf.matmul(h_conv3_flat, W_fc1) + b_fc1)
+            h_fc1 = tf.nn.relu6(tf.matmul(h_conv2_flat, W_fc1) + b_fc1)
             h_fc2 = tf.nn.relu6(tf.matmul(h_fc1, W_fc2) + b_fc2)
             steer = tf.nn.relu6(tf.matmul(h_fc2, W_steer) + b_steer)
-        return s, steer, [W_conv1, b_conv1, W_conv2, b_conv2, W_conv3, b_conv3,
+        return s, steer, [W_conv1, b_conv1, W_conv2, b_conv2,
                           W_fc1, b_fc1, W_fc2, b_fc2, W_steer, b_steer]
 
     def create_target_network(self, net):
@@ -78,16 +76,15 @@ class ActorNetwork:
 
             h_conv1 = tf.nn.relu6(self._conv2d(s, target_net[0], 4) + target_net[1])
             h_conv2 = tf.nn.relu6(self._conv2d(h_conv1, target_net[2], 2) + target_net[3])
-            h_conv3 = tf.nn.relu6(self._conv2d(h_conv2, target_net[4], 2) + target_net[5])
 
             # Flatten
-            flatten = int(h_conv3.shape[1] * h_conv3.shape[2] * h_conv3.shape[3])
-            h_conv3_flat = tf.reshape(h_conv3, [-1, flatten])
+            flatten = int(h_conv2.shape[1] * h_conv2.shape[2] * h_conv2.shape[3])
+            h_conv2_flat = tf.reshape(h_conv2, [-1, flatten])
 
             # Dense
-            h_fc1 = tf.nn.relu6(tf.matmul(h_conv3_flat, target_net[6]) + target_net[7])
-            h_fc2 = tf.nn.relu6(tf.matmul(h_fc1, target_net[8]) + target_net[9])
-            steer = tf.nn.relu6(tf.matmul(h_fc2, target_net[10]) + target_net[11])
+            h_fc1 = tf.nn.relu6(tf.matmul(h_conv2_flat, target_net[4]) + target_net[5])
+            h_fc2 = tf.nn.relu6(tf.matmul(h_fc1, target_net[6]) + target_net[7])
+            steer = tf.nn.relu6(tf.matmul(h_fc2, target_net[8]) + target_net[9])
         return s, steer, target_update, target_net
 
     def update_target(self):
