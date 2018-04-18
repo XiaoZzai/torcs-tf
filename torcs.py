@@ -56,7 +56,7 @@ class Torcs:
 
     def step(self, steer):
 
-        action = [steer, 0.16, 0]
+        action = [steer, 0.20, 0]
 
         client = self.client
         this_action = self._agent_to_torcs(action)
@@ -82,8 +82,8 @@ class Torcs:
         sp = np.array(raw_obs['speedX'])
         # damage = np.array(obs['damage'])
 
-        reward = sp*np.cos(raw_obs["angle"]) - sp * np.abs(raw_obs['trackPos']) / 2 \
-                    - sp * np.abs(action_torcs['steer']) * 4
+        reward = sp*np.cos(raw_obs["angle"]) - sp * np.abs(raw_obs['trackPos'])  \
+                    - sp * np.abs(action_torcs['steer']) * 2
         self.last_steer = action_torcs['steer']
 
         done = False
@@ -117,7 +117,9 @@ class Torcs:
     def end(self):
         if self.screenshot == True:
             os.system("rm .tmp.png")
-        os.killpg(os.getpgid(self.torcs_proc.pid), signal.SIGKILL)
+
+        if self.torcs_proc != None:
+            os.killpg(os.getpgid(self.torcs_proc.pid), signal.SIGKILL)
 
     def _reset_torcs(self, track_offset):
         # kill existing torcs

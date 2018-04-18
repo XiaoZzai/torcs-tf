@@ -4,21 +4,21 @@ import math
 
 
 # Hyper Parameters
-LAYER1_SIZE = 300
-LAYER2_SIZE = 600
+LAYER1_SIZE = 200
+LAYER2_SIZE = 200
 LEARNING_RATE = 1e-4
 TAU = 1e-3
-BATCH_SIZE = 32
+# BATCH_SIZE = 16
+
 class ActorNetwork:
-    """docstring for ActorNetwork"""
     def __init__(self,sess,state_dim,action_dim):
 
         self.sess = sess
         self.state_dim  = state_dim
         self.action_dim = action_dim
         
-        self.state_input, self.action_output, self.net = self.create_network(state_dim, action_dim)
-        self.target_state_input, self.target_action_output, self.target_update, self.target_net = self.create_target_network(state_dim, action_dim, self.net)
+        self.state_input, self.action_output, self.net = self.create_network()
+        self.target_state_input, self.target_action_output, self.target_update, self.target_net = self.create_target_network(self.net)
 
         # define training rules
         self.create_training_method()
@@ -26,7 +26,6 @@ class ActorNetwork:
         self.sess.run(tf.initialize_all_variables())
 
         self.update_target()
-        #self.load_network()
 
     def create_training_method(self):
         self.q_gradient_input = tf.placeholder("float", [None, self.action_dim])
@@ -38,58 +37,58 @@ class ActorNetwork:
 	    '''
         self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(list(zip(self.parameters_gradients, self.net)))
     
-    def create_network(self, state_dim, action_dim, use_bn=False):
+    def create_network(self):
 
         layer1_size = LAYER1_SIZE
         layer2_size = LAYER2_SIZE
 
-        state_input = tf.placeholder("float", [None, state_dim])
+        with tf.variable_scope("actor") as scope:
+            s = tf.placeholder(tf.float32, [None, 64, 64, 4])
 
-        state_w1 = self.variable([state_dim, layer1_size], state_dim)
-        state_b1 = self.variable([layer1_size], state_dim)
-        state_w2 = self.variable([layer1_size, layer2_size], layer1_size)
-        state_b2 = self.variable([layer2_size], layer1_size)
+            # Convolution
+            W_conv1, b_conv1 = self._conv_variable([8, 8, 4, 32])   # stride=4
+            W_conv2, b_conv2 = self._conv_variable([4, 4, 32, 32])  # stride=2
+            W_conv3, b_conv3 = self._conv_variable([3, 3, 32, 32])  # stride=2
+            h_conv1 = tf.nn.relu6(self._conv2d(s, W_conv1, 4) + b_conv1)
+            h_conv2 = tf.nn.relu6(self._conv2d(h_conv1, W_conv2, 2) + b_conv2)
+            h_conv3 = tf.nn.relu6(self._conv2d(h_conv2, W_conv3, 2) + b_conv3)
 
-        layer1 = tf.nn.relu(tf.matmul(state_input, state_w1) + state_b1)
-        # if use_bn == True:
-        #     layer1 = tf.layers.batch_normalization(layer1, center=True, scale=True)
+            # Flatten
+            flatten = int(h_conv3.shape[1] * h_conv3.shape[2] * h_conv3.shape[3])
+            h_conv3_flat = tf.reshape(h_conv3, [-1, flatten])
 
-        layer2 = tf.nn.relu(tf.matmul(layer1, state_w2) + state_b2)
-        # if use_bn == True:
-        #     layer2 = tf.layers.batch_normalization(layer2, center=True, scale=True)
+            # Dense
+            W_fc1, b_fc1 = self._fc_variable([flatten, layer1_size])
+            W_fc2, b_fc2 = self._fc_variable([layer2_size, layer1_size])
+            W_steer, b_steer = self._fc_variable([layer2_size, 1])
 
-        steer_w = tf.Variable(tf.random_uniform([layer2_size, 1], -1e-4, 1e-4))
-        steer_b = tf.Variable(tf.random_uniform([1], -1e-4, 1e-4))
-        steer = tf.tanh(tf.matmul(layer2, steer_w) + steer_b)
+            h_fc1 = tf.nn.relu6(tf.matmul(h_conv3_flat, W_fc1) + b_fc1)
+            h_fc2 = tf.nn.relu6(tf.matmul(h_fc1, W_fc2) + b_fc2)
+            steer = tf.nn.relu6(tf.matmul(h_fc2, W_steer) + b_steer)
+        return s, steer, [W_conv1, b_conv1, W_conv2, b_conv2, W_conv3, b_conv3,
+                          W_fc1, b_fc1, W_fc2, b_fc2, W_steer, b_steer]
 
-        # accel_w = tf.Variable(tf.random_uniform([layer2_size, 1], -1e-4, 1e-4))
-        # accel_b = tf.Variable(tf.random_uniform([1], -1e-4, 1e-4))
-        # accel = tf.sigmoid(tf.matmul(layer2, accel_w) + accel_b)
+    def create_target_network(self, net):
+        with tf.variable_scope("actor_target") as scope:
+            ema = tf.train.ExponentialMovingAverage(decay=1 - TAU)
+            target_update = ema.apply(net)
+            target_net = [ema.average(x) for x in net]
 
-        # brake_w = tf.Variable(tf.random_uniform([layer2_size, 1], -1e-4, 1e-4))
-        # brake_b = tf.Variable(tf.random_uniform([1], -1e-4, 1e-4))
-        # brake = tf.sigmoid(tf.matmul(layer2, brake_w) + brake_b)
-        
-        # action_output = tf.concat([steer, accel, brake], 1)
-        action_output = steer
-        return state_input,action_output,[state_w1, state_b1, state_w2, state_b2, steer_w, steer_b]
+            s = tf.placeholder(tf.float32, [None, 64, 64, 4])
 
-    def create_target_network(self, state_dim, action_dim, net, use_bn=False):
-        state_input = tf.placeholder("float", [None, state_dim])
-        ema = tf.train.ExponentialMovingAverage(decay=1-TAU)
-        target_update = ema.apply(net)
-        target_net = [ema.average(x) for x in net]
+            h_conv1 = tf.nn.relu6(self._conv2d(s, target_net[0], 4) + target_net[1])
+            h_conv2 = tf.nn.relu6(self._conv2d(h_conv1, target_net[2], 2) + target_net[3])
+            h_conv3 = tf.nn.relu6(self._conv2d(h_conv2, target_net[4], 2) + target_net[5])
 
-        layer1 = tf.nn.relu(tf.matmul(state_input, target_net[0]) + target_net[1])
-        layer2 = tf.nn.relu(tf.matmul(layer1, target_net[2]) + target_net[3])
+            # Flatten
+            flatten = int(h_conv3.shape[1] * h_conv3.shape[2] * h_conv3.shape[3])
+            h_conv3_flat = tf.reshape(h_conv3, [-1, flatten])
 
-        steer = tf.tanh(tf.matmul(layer2, target_net[4]) + target_net[5])
-        # accel = tf.sigmoid(tf.matmul(layer2,target_net[6]) + target_net[7])
-        # brake = tf.sigmoid(tf.matmul(layer2,target_net[8]) + target_net[9])
-        # action_output = tf.concat([steer, accel, brake], 1)
-
-        action_output = steer
-        return state_input, action_output, target_update, target_net
+            # Dense
+            h_fc1 = tf.nn.relu6(tf.matmul(h_conv3_flat, target_net[6]) + target_net[7])
+            h_fc2 = tf.nn.relu6(tf.matmul(h_fc1, target_net[8]) + target_net[9])
+            steer = tf.nn.relu6(tf.matmul(h_fc2, target_net[10]) + target_net[11])
+        return s, steer, target_update, target_net
 
     def update_target(self):
         self.sess.run(self. target_update)
@@ -116,23 +115,27 @@ class ActorNetwork:
             self.target_state_input:state_batch
             })
 
-    # f fan-in size
-    def variable(self, shape, f):
-        return tf.Variable(tf.random_uniform(shape, -1/math.sqrt(f), 1/math.sqrt(f)))
-    '''
-    def load_network(self):
-        self.saver = tf.train.Saver()
-        checkpoint = tf.train.get_checkpoint_state("saved_actor_networks")
-        if checkpoint and checkpoint.model_checkpoint_path:
-            self.saver.restore(self.sess, checkpoint.model_checkpoint_path)
-            print "Successfully loaded:", checkpoint.model_checkpoint_path
-        else:
-            print "Could not find old network weights"
-            
-    def save_network(self,time_step):
-        print 'save actor-network...',time_step
-        self.saver.save(self.sess, 'saved_actor_networks/' + 'actor-network', global_step = time_step)
+    def _fc_variable(self, weight_shape):
+        input_channels = weight_shape[0]
+        output_channels = weight_shape[1]
+        d = 1.0 / np.sqrt(input_channels)
+        bias_shape = [output_channels]
+        weight = tf.Variable(tf.random_uniform(weight_shape, minval=-d, maxval=d))
+        bias = tf.Variable(tf.random_uniform(bias_shape, minval=-d, maxval=d))
+        return weight, bias
 
-    '''
+    def _conv_variable(self, weight_shape):
+        w = weight_shape[0]
+        h = weight_shape[1]
+        input_channels  = weight_shape[2]
+        output_channels = weight_shape[3]
+        d = 1.0 / np.sqrt(input_channels * w * h)
+        # d = 3*1e-4
+        bias_shape = [output_channels]
+        weight = tf.Variable(tf.random_uniform(weight_shape, minval=-d, maxval=d))
+        bias   = tf.Variable(tf.random_uniform(bias_shape,   minval=-d, maxval=d))
+        return weight, bias
 
+    def _conv2d(self, x, W, stride):
+        return tf.nn.conv2d(x, W, strides = [1, stride, stride, 1], padding = "VALID")
 
