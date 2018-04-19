@@ -28,18 +28,19 @@ class CriticNetwork:
 
     def create_training_method(self):
         # Define training optimizer
-        self.y_input = tf.placeholder("float", [None, 1])
-        weight_decay = tf.add_n([L2 * tf.nn.l2_loss(var) for var in self.net])
-        self.cost = tf.reduce_mean(tf.square(self.y_input - self.q_value_output)) + weight_decay
-        self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(self.cost)
-        self.action_gradients = tf.gradients(self.q_value_output, self.action_input)
+        with tf.variable_scope("img_critic_traing_method") as scope:
+            self.y_input = tf.placeholder("float", [None, 1])
+            weight_decay = tf.add_n([L2 * tf.nn.l2_loss(var) for var in self.net])
+            self.cost = tf.reduce_mean(tf.square(self.y_input - self.q_value_output)) + weight_decay
+            self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(self.cost)
+            self.action_gradients = tf.gradients(self.q_value_output, self.action_input)
 
     def create_q_network(self):
 
         layer1_size = LAYER1_SIZE
         layer2_size = LAYER2_SIZE
 
-        with tf.variable_scope("critic") as scope:
+        with tf.variable_scope("img_critic") as scope:
             s = tf.placeholder(tf.float32, [None, 64, 64, 4])
             a = tf.placeholder(tf.float32, [None, 1])
 
@@ -72,7 +73,7 @@ class CriticNetwork:
                           W_fc1, b_fc1, W_fc2, b_fc2, W_v, b_v]
 
     def create_target_q_network(self, net):
-        with tf.variable_scope("critic_target") as scope:
+        with tf.variable_scope("img_critic_target") as scope:
 
             ema = tf.train.ExponentialMovingAverage(decay=1 - TAU)
             target_update = ema.apply(net)

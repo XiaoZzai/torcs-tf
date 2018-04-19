@@ -40,7 +40,7 @@ def main():
     agent.load_network()
 
     vision = False
-    env = TorcsWrapper(noisy=False)
+    env = TorcsWrapper(noisy=True)
 
     # rewards_every_steps = np.zeros([MAX_EP, MAX_STEPS_EP])
     # actions_every_steps = np.zeros([MAX_EP, MAX_STEPS_EP, action_dim])
@@ -69,6 +69,7 @@ def main():
             total_reward = 0
             step_ep = 0
             while (step_ep < MAX_STEPS_EP):
+                print(s_t[1])
                 a_t = agent.action(s_t[1])
                 s_t1, r_t, done, info = env.step(a_t[0])
                 summary = sess.run([merged_summary], feed_dict={

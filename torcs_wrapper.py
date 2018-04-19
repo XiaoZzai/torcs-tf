@@ -10,7 +10,7 @@ class TorcsWrapper:
         self.step_total = 0
         self.action_repeatition = action_repeatition
         self.throttle = throttle
-        self.env = Torcs(vision=True, port=port, noisy=noisy, throttle=self.throttle)
+        self.env = Torcs(vision=True, port=port, noisy=noisy)
 
         # self.s_t = None
 
@@ -34,10 +34,11 @@ class TorcsWrapper:
             img = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY) / 127.5 - 1
             imgs[:, :, 0] = img
             for i in range(self.action_repeatition - 1):
-                ob, reward, done, _ = self.env.step(self.last_steer)
+                ob, reward, done, _ = self.env.step([self.last_steer, self.throttle, 0])
                 img = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY) / 127.5 - 1
                 imgs[:, :, i+1] = img
-            s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, self.last_steer))
+            speed = np.sqrt(ob.speedX**2 + ob.speedY**2 + ob.speedZ**2)
+            s_t = np.hstack((ob.angle, ob.track, ob.trackPos, speed, self.last_steer))
             return [imgs, s_t]
         else:
             ob = self.env.reset(relaunch=relaunch, track_offset=track_offset)
@@ -48,6 +49,7 @@ class TorcsWrapper:
             # img = img.reshape(64, 64, 1)
             self.s_t = np.stack((img, img, img, img), axis=2)
             self.dist_start = ob.distFromStart
+            speed = np.sqrt(ob.speedX**2 + ob.speedY**2 + ob.speedZ**2)
             s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, self.last_steer))
 
             return [self.s_t, s_t]
@@ -59,22 +61,24 @@ class TorcsWrapper:
         if self.action_repeatition > 1:
             imgs = np.zeros([64, 64, 4])
             for i in range(self.action_repeatition):
-                ob, reward, done, _ = self.env.step(steer_action)
+                ob, reward, done, _ = self.env.step([steer_action, self.throttle, 0])
                 img = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY) / 127.5 - 1
                 imgs[:, :, i] = img
-            s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, self.last_steer))
+            speed = np.sqrt(ob.speedX**2 + ob.speedY**2 + ob.speedZ**2)
+            s_t = np.hstack((ob.angle, ob.track, ob.trackPos, speed, self.last_steer))
 
             self.last_steer = steer_action
             return [imgs, s_t], reward, done, None
         else:
-            ob, reward, done, _  = self.env.step(steer_action)
+            ob, reward, done, _  = self.env.step([steer_action, self.throttle, 0])
             # print(np.asarray(ob.img).shape)
 
             img = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY) / 127.5 - 1
             img = img.reshape(64, 64, 1)
+            # print(self.s_t.shape)
             self.s_t = np.append(self.s_t[:, :, 1:], img, axis=2)
 
-            # speed = np.sqrt(ob.speedX**2 + ob.speedY**2 + ob.speedZ**2)
+            speed = np.sqrt(ob.speedX**2 + ob.speedY**2 + ob.speedZ**2)
             s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, self.last_steer))
 
             self.last_steer = steer_action
@@ -84,16 +88,14 @@ class TorcsWrapper:
         self.env.end()
 
 if __name__ == "__main__":
-    env = TorcsWrapper(action_repeatition=4)
-    img = env.reset(1)
+    env = TorcsWrapper()
+    img = env.reset(0)
     while True:
-        cv2.imshow("img", img[0][:, :, 1])
-        cv2.waitKey(1)
+        # cv2.imshow("img", img[0][:, :, 1])
+        # cv2.waitKey(1)
         # print(img[0].shape)
-        print(img[1])
-        img, _, done, info = env.step(0.1)
+        # print(img[1])
+        img, _, done, info = env.step(0)
         if done == True:
             break
-        # else:
-        #     print(info)
     env.end()

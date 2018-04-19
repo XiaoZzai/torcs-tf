@@ -11,6 +11,7 @@ from torcs_wrapper import TorcsWrapper
 from ddpg import ddpg
 from guide_ddpg import guide_ddpg
 from my_config import *
+import cv2
 
 def main():
     MAX_EPISODE = max_episode
@@ -18,7 +19,7 @@ def main():
     epsilon   = epsilon_start
 
     # Creating necessary directories
-    experiment_name = "img-1"
+    experiment_name = "guide0"
     experiment_dir  = "experiment-%s/" % experiment_name
     models_dir = experiment_dir + "model/"
     logs_train_dir = experiment_dir + "logs-train/"
@@ -48,11 +49,13 @@ def main():
     env_name   = 'torcs'
 
     sess = tf.InteractiveSession()
-    guide_agent = guide_ddpg(env_name, sess, 25,  1, "experiment-noisy-2/model")
-    guide_agent.load_network()
+    guide_agent = guide_ddpg(env_name, sess, 25,  1, "model/")
 
-    agent = ddpg(env_name, sess, state_dim, action_dim, models_dir)
+    agent = ddpg("img" + env_name, sess, state_dim, action_dim, models_dir)
     agent.load_network()
+    # agent = guide_agent
+
+    guide_agent.load_network()
 
     vision = False
     env = TorcsWrapper(noisy=True)
@@ -97,6 +100,9 @@ def main():
                    " Epsilon " + str(epsilon)))
 
             for step in range(MAX_STEPS_EP):
+                # cv2.imshow("img", s_t[0])
+                # cv2.waitKey(1)
+                # print(s_t[0].shape)
                 if step < warmup_step:
                     a_t = guide_agent.action(s_t[1])
                 else:
@@ -125,7 +131,7 @@ def main():
                 if done:
                     break
 
-                if np.mod(episode + 1, 1000) == 0:
+                if np.mod(episode + 1, 200) == 0:
                         print("Now we save model with step = ", episode)
                         agent.save_network(episode + 1)
 

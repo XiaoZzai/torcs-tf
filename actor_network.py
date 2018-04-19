@@ -28,21 +28,22 @@ class ActorNetwork:
         self.update_target()
 
     def create_training_method(self):
-        self.q_gradient_input = tf.placeholder("float", [None, self.action_dim])
-        self.parameters_gradients = tf.gradients(self.action_output, self.net, -self.q_gradient_input)
-        '''        
-        for i, grad in enumerate(self.parameters_gradients):
-            if grad is not None:
-                self.parameters_gradients[i] = tf.clip_by_value(grad, -2.0,2.0)
-	    '''
-        self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(list(zip(self.parameters_gradients, self.net)))
+        with tf.variable_scope("img_actor_traing_method") as scope:
+            self.q_gradient_input = tf.placeholder("float", [None, self.action_dim])
+            self.parameters_gradients = tf.gradients(self.action_output, self.net, -self.q_gradient_input)
+            '''        
+            for i, grad in enumerate(self.parameters_gradients):
+                if grad is not None:
+                    self.parameters_gradients[i] = tf.clip_by_value(grad, -2.0,2.0)
+	        '''
+            self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(list(zip(self.parameters_gradients, self.net)))
     
     def create_network(self):
 
         layer1_size = LAYER1_SIZE
         layer2_size = LAYER2_SIZE
 
-        with tf.variable_scope("actor") as scope:
+        with tf.variable_scope("img_actor") as scope:
             s = tf.placeholder(tf.float32, [None, 64, 64, 4])
 
             # Convolution
@@ -67,7 +68,7 @@ class ActorNetwork:
                           W_fc1, b_fc1, W_fc2, b_fc2, W_steer, b_steer]
 
     def create_target_network(self, net):
-        with tf.variable_scope("actor_target") as scope:
+        with tf.variable_scope("img_actor_target") as scope:
             ema = tf.train.ExponentialMovingAverage(decay=1 - TAU)
             target_update = ema.apply(net)
             target_net = [ema.average(x) for x in net]
