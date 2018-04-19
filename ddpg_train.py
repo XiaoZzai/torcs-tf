@@ -83,6 +83,7 @@ def main():
     # print('Press Ctrl+C to stop')
     # signal.signal(signal.SIGINT, signal_handler)
 
+    reward_every_episode = np.zeros(MAX_EPISODE)
     start_time = time.time()
     delta_epsilon = (epsilon_start - epsilon_end) / (MAX_EPISODE / 2)
     try:
@@ -98,11 +99,8 @@ def main():
             print((" Episode : " + str(episode) + " Replay Buffer " + str(agent.replay_buffer.count()) +
                    " WarmUp Step " + str(warmup_step) + " Track " + str(track_no) +
                    " Epsilon " + str(epsilon)))
-
+            ep_r = 0
             for step in range(MAX_STEPS_EP):
-                # cv2.imshow("img", s_t[0])
-                # cv2.waitKey(1)
-                # print(s_t[0].shape)
                 if step < warmup_step:
                     a_t = guide_agent.action(s_t[1])
                 else:
@@ -111,14 +109,18 @@ def main():
                 a_t = a_t[0]
                 s_t1, r_t, done, info = env.step(a_t)
                 cost = agent.perceive(s_t[0], a_t, r_t, s_t1[0], done)
-                summary = sess.run([merged_summary], feed_dict={
-                    critic_cost : cost,
-                    actor_action : a_t,
-                    reward : r_t,
-                    # state : s_t
-                })
 
-                writer.add_summary(summary[0], step)
+                if step >= warmup_step:
+                    ep_r += r_t
+
+                # summary = sess.run([merged_summary], feed_dict={
+                #     critic_cost : cost,
+                #     actor_action : a_t,
+                #     reward : r_t,
+                #     state : s_t
+                # })
+
+                # writer.add_summary(summary[0], step)
 
                 total_reward += r_t
                 s_t = s_t1
@@ -131,33 +133,37 @@ def main():
                 if done:
                     break
 
-                if np.mod(episode + 1, 200) == 0:
-                        print("Now we save model with step = ", episode)
-                        agent.save_network(episode + 1)
+            reward_every_episode[episode] = ep_r
+
+            if np.mod(episode + 1, 200) == 0:
+                print("Now we save model with step = ", episode)
+                agent.save_network(episode + 1)
 
             print(("TOTAL REWARD @ " + str(episode) + "-th Episode  : Reward " + str(total_reward)))
             print("")
-        # print('Now saving data. Please wait')
-        # agent.save_network( + 1)
+            # print('Now saving data. Please wait')
+            # agent.save_network( + 1)
 
     except:
         traceback.print_exc()
-        with open((logs_train_dir + "exception"), 'w') as file:
-            file.write(str(traceback.format_exc()))
+        # with open((logs_train_dir + "exception"), 'w') as file:
+        #     file.write(str(traceback.format_exc()))
 
     finally:
         env.end()
         end_time = time.time()
 
+        print("Total time = %s " % (end_time - start_time))
+
         # np.save(logs_train_dir + "reward.npy", rewards_every_steps)
         # np.save(logs_train_dir + "action.npy", actions_every_steps)
 
-        with open(logs_train_dir + "log", 'w') as file:
-            file.write("epsilon_start = %d\n" % epsilon_start)
-            file.write("total_episode = %d\n" % MAX_EPISODE)
-            # file.write("total_step = %d\n" % step)
-            file.write("total_time = %s (s)\n" % str(end_time - start_time))
-
+        # with open(logs_train_dir + "log", 'w') as file:
+        #     file.write("epsilon_start = %d\n" % epsilon_start)
+        #     file.write("total_episode = %d\n" % MAX_EPISODE)
+        #     file.write("total_step = %d\n" % step)
+        #     file.write("total_time = %s (s)\n" % str(end_time - start_time))
+        #
         print("Finish.")
 
 if __name__ == "__main__":
