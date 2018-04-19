@@ -153,7 +153,7 @@ def main():
         env.end()
         end_time = time.time()
 
-        print("Total time = %s " % (end_time - start_time))
+        np.save("reward-%s.npy" % str(end_time - start_time), reward_every_episode)
 
         # np.save(logs_train_dir + "reward.npy", rewards_every_steps)
         # np.save(logs_train_dir + "action.npy", actions_every_steps)
