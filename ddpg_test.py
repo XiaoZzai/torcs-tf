@@ -16,27 +16,27 @@ def main():
     # Creating necessary directories
     test_track_no = 6
     experiment_name = "noisy-2"
-    experiment_dir  = "experiment-%s/" % experiment_name
-    models_dir = experiment_dir + "model/"
-    logs_test_dir = experiment_dir + "logs-test-track-no-%d/" % test_track_no
+    # experiment_dir  = "experiment-%s/" % experiment_name
+    # models_dir = experiment_dir + "model/"
+    # logs_test_dir = experiment_dir + "logs-test-track-no-%d/" % test_track_no
 
-    if os.path.exists(experiment_dir) == False:
-        print("%s dosen't exists" % experiment_dir)
+    if os.path.exists("model/") == False:
+        print("%s dosen't exists" % "model/")
         return
 
-    if os.path.exists(models_dir) == False:
-        print("%s dosen't exists" % models_dir)
-        return
-
-    if os.path.exists(logs_test_dir) == False:
-        os.mkdir(logs_test_dir)
+    # if os.path.exists(models_dir) == False:
+    #     print("%s dosen't exists" % models_dir)
+    #     return
+    #
+    # if os.path.exists(logs_test_dir) == False:
+    #     os.mkdir(logs_test_dir)
 
     action_dim = 1
     state_dim  = 25
     env_name   = 'torcs'
 
     sess = tf.InteractiveSession()
-    agent = guide_ddpg(env_name, sess, state_dim, action_dim, models_dir)
+    agent = guide_ddpg(env_name, sess, state_dim, action_dim, "model")
     agent.load_network()
 
     vision = False
@@ -55,7 +55,7 @@ def main():
         # tf.summary.histogram('state', state)
         merged_summary = tf.summary.merge_all()
 
-    writer = tf.summary.FileWriter(logs_test_dir, sess.graph)
+    # writer = tf.summary.FileWriter(logs_test_dir, sess.graph)
 
     print("Testing Start.")
     start_time = time.time()
@@ -77,7 +77,7 @@ def main():
                     # state : s_t
                 })
 
-                writer.add_summary(summary[0], step)
+                # writer.add_summary(summary[0], step)
 
                 total_reward += r_t
                 s_t = s_t1
@@ -98,8 +98,8 @@ def main():
 
     except:
         traceback.print_exc()
-        with open((logs_test_dir + "exception"), 'w') as file:
-            file.write(str(traceback.format_exc()))
+        # with open((logs_test_dir + "exception"), 'w') as file:
+        #     file.write(str(traceback.format_exc()))
 
     finally:
         env.end()
@@ -108,12 +108,12 @@ def main():
         # np.save(logs_test_dir + "reward.npy", rewards_every_steps)
         # np.save(logs_test_dir + "action.npy", actions_every_steps)
 
-        with open(logs_test_dir + "log", 'w') as file:
-            file.write("total_episode = %d\n" % MAX_EP)
-            file.write("max_steps_ep = %d\n" % MAX_STEPS_EP)
-            file.write("total_step = %d\n" % step)
-            file.write("total_time = %s (s)\n" % str(end_time - start_time))
-
+        # with open(logs_test_dir + "log", 'w') as file:
+        #     file.write("total_episode = %d\n" % MAX_EP)
+        #     file.write("max_steps_ep = %d\n" % MAX_STEPS_EP)
+        #     file.write("total_step = %d\n" % step)
+        #     file.write("total_time = %s (s)\n" % str(end_time - start_time))
+        #
         print("Finish.")
 
 if __name__ == "__main__":

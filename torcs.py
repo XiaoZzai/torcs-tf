@@ -12,7 +12,7 @@ import cv2
 # Torcs env only for steer controlling
 class Torcs:
 
-    def __init__(self, vision=False, screenshot=False, noisy=False, port=3101, throttle=0.14):
+    def __init__(self, vision=False, screenshot=False, noisy=False, port=3101, throttle=0.16):
         self.vision = vision
         self.screenshot = screenshot # If obtain image through screenshot or not
         self.port  = port

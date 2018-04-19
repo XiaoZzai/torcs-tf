@@ -4,13 +4,13 @@ import gym
 import numpy as np
 
 class TorcsWrapper:
-    def __init__(self, port=3101, noisy=False, action_repeatition=0, throttle=0.14):
+    def __init__(self, port=3101, noisy=False, action_repeatition=0, throttle=0.16):
         self.episode = 0
         self.step_per_episode = 0
         self.step_total = 0
         self.action_repeatition = action_repeatition
-
-        self.env = Torcs(vision=True, port=port, noisy=noisy, throttle=0.14)
+        self.throttle = throttle
+        self.env = Torcs(vision=True, port=port, noisy=noisy, throttle=self.throttle)
 
         # self.s_t = None
 
@@ -49,6 +49,7 @@ class TorcsWrapper:
             self.s_t = np.stack((img, img, img, img), axis=2)
             self.dist_start = ob.distFromStart
             s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, self.last_steer))
+
             return [self.s_t, s_t]
 
     def step(self, steer_action):
@@ -62,6 +63,7 @@ class TorcsWrapper:
                 img = cv2.cvtColor(ob.img, cv2.COLOR_RGB2GRAY) / 127.5 - 1
                 imgs[:, :, i] = img
             s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, self.last_steer))
+
             self.last_steer = steer_action
             return [imgs, s_t], reward, done, None
         else:
@@ -74,6 +76,7 @@ class TorcsWrapper:
 
             # speed = np.sqrt(ob.speedX**2 + ob.speedY**2 + ob.speedZ**2)
             s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, self.last_steer))
+
             self.last_steer = steer_action
             return [self.s_t, s_t], reward, done, None # ob.distFromStart - self.dist_start
 
